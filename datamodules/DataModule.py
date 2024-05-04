@@ -9,38 +9,29 @@ from datasets import load_from_disk, Dataset
 
 from transformers import PreTrainedModel, DataCollatorForSeq2Seq
 from accelerate.utils import tqdm
-from datamodules.collator import DPODataCollatorWithPaddingCustom, DataCollatorForSeq2SeqCustom
-from datamodules.DataLoader import PromptIterator, ItrWiseDataLoader, BatchWiseDataLoader
+from datamodules.collator import DataCollatorForSeq2SeqCustom
+from datamodules.DataLoader import PromptIterator, BatchWiseDataLoader
 
 from modules.SpeculateDecoding import SD
-from modules.Preference import RewardSetter
-from utils.util import get_task_prompt, get_target_cls
+from utils.util import get_task_prompt
 
 
-class Datamodule:
+class DataModule:
     def __init__(self, _config, sd: SD):
         self._config = _config
-        # dependency injection: model, tokenizer, judge_draft from SD
-        self.sd = sd
         
+        self.sd = sd
         self.is_encoder_decoder = self.sd.is_encoder_decoder
         
         # dataset
         self.dataset_name = _config['dataset']
         self.task_prompt = get_task_prompt(self.dataset_name)
-        self.prompt_dataloaders = self.get_prompt_dataloaders()
         # self.label_pad_token_id = _config['label_pad_token_id']
 
-        # get_target_itr_dataset
-        self.target_cls = get_target_cls(_config)
-        self.draft_from = _config['draft_from']
         self.max_prompt_length = _config['max_prompt_length']
+        self.max_chunk_length = _config['max_chunk_length']
         self.max_target_length = _config['max_target_length']
         self.temperature = _config['temperature']
-
-        self.custom_metrics = _config['custom_metrics']
-
-        
 
     def load_dataset(self):
         dataset = load_from_disk(f"./datamodules/dataset/{self.dataset_name}")
@@ -51,13 +42,6 @@ class Datamodule:
                 valid=Dataset(dataset['validation']._data[:5]),
                 test=Dataset(dataset['test']._data[:10]),
             )
-        elif self._config['num_same_train_valid']:
-            n = self._config['num_same_train_valid']
-            return dict(
-                train=Dataset(dataset['train']._data[:n]),
-                valid=Dataset(dataset['train']._data[:n]),
-                test=Dataset(dataset['test']._data[:10]),
-            )
         else:
             return dict(
                 train=dataset['train'],
@@ -65,49 +49,32 @@ class Datamodule:
                 test=dataset['test'],
             )
 
-    def get_prompt_dataloaders(self) -> DataLoader:
+    def get_prompt_dataloaders(self, tokenize=False) -> DataLoader:
         datasets = self.load_dataset()
 
         data_loaders = dict()        
         for split in ['train', 'valid', 'test']:
+
+            dataset = datasets[split]
+
+            if tokenize:
+                """
+                Todo: Tokenize the prompts
+                """
+                pass
+
             data_loaders[split] = PromptIterator(
-                datasets[split],
+                dataset,
                 batch_size=self._config['batch_prompt'],
                 shuffle=False)
         
         return data_loaders
     
     def get_collator(self):
-        # RL, DistillSpec
-        # elif is_encoder_decoder: True (seq2seq model)
-        # Todo: Set arugments e.g., max length 
-        return DataCollatorForSeq2SeqCustom(
-            tokenizer=self.sd.tokenizer,
-            padding=True,
-            label_pad_token_id=self.label_pad_token_id,
-        )
+        raise NotImplementedError
     
     def get_dataloader(self, split) -> DataLoader:
-        shuffle = True if split == 'train' else False
-        prompt_dataloader = self.prompt_dataloaders[split]
-        data_collator = self.get_collator()
-
-        kwargs_dataloader = dict(
-            prompt_iterator=prompt_dataloader,
-            batch_size=self._config['batch_train'],
-            split=split,
-            shuffle=shuffle,
-            num_workers=0,            
-        )
-            
-        if self.data_gen == "batch":
-            return BatchWiseDataLoader(
-                get_target_batch=self.get_target_batch,
-                add_task_prompt=self.add_task_prompt,
-                itrwise_collate_fn=data_collator,
-                multiply_draft_pair=self.multiply_draft_pair,
-                **kwargs_dataloader,
-            )
+        raise NotImplementedError
 
     def add_task_prompt(self, features: List[Union[str, Dict]], is_collate: bool = False):
         if is_collate:
@@ -143,20 +110,16 @@ class Datamodule:
         ).to(self.sd.drf_model.device)
         
         # DistillSpec, RL
-        if self.draft_from == "drf":
-            outputs = {
-                "drf": self.generate_sequence(self.sd.drf_model, **inputs_prompts)
-            }
-        else:
-            outputs = {
-                "tgt": self.generate_sequence(self.sd.tgt_model, **inputs_prompts)
-            }
+        outputs = self.generate_sequence(self.sd.drf_model, **inputs_prompts)
 
         return outputs, inputs_prompts
 
     
     @torch.no_grad()
     def get_target_batch(self, prompts: List[str], split) -> List[Dict[str, torch.Tensor]]:
+        """
+        batch-wise target generation from prompt x
+        """
 
         # generate drafts (on-the-fly while training)
         self.sd.drf_model.eval()

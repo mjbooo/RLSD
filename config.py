@@ -10,7 +10,8 @@ ex = Experiment("METER", save_git_info=False)
 def config():
     # Model config
     drf = "google/t5-small-lm-adapt" # drf model
-    tgt = "google/t5-xl-lm-adapt" # target model
+    tgt = "google/t5-base-lm-adapt" # target model
+    # tgt = "google/t5-xl-lm-adapt" # target model
     
     # policy: DS, RL
     policy = "DistillSpec"
@@ -31,8 +32,9 @@ def config():
     batch_train = 8 # "batch size"
     n_epochs = 2 # "The number of total epochs"
     eval = False # "enable eval mode"
-    debug = False # "enable debug mode (no wandb logging)"
-    tiny_data = False # "use small data for debugging"
+    debug = False # enable debug mode (no wandb logging)
+    tiny_data = False # use small data for debugging
+    ckpt_load = None # load checkpoint model
 
     # Logging config
     # logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
@@ -53,6 +55,11 @@ def config():
     output_dir = f"{root}/data/ImprovedSD/checkpoint/{ckpt_save}"
 
     
+# DistillSpec
 @ex.named_config
-def RL():
+def DS():
+    raise NotImplementedError
+
+@ex.named_config
+def RLS():
     raise NotImplementedError

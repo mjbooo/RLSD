@@ -12,31 +12,6 @@ class PromptIterator(DataLoader):
             shuffle=shuffle,
         )
 
-
-class ItrWiseDataLoader(DataLoader):
-    def __init__(
-        self, 
-        prompt_iterator, 
-        get_target_itr_dataset, 
-        tokenize_row, 
-        batch_size, 
-        split, 
-        collate_fn,
-        shuffle,
-        num_workers,
-        ):
-        # At the beginning of each iteration, get the target (response) from prompt for whole D
-        dataset_text = get_target_itr_dataset(prompt_iterator, split=split)
-        dataset_tensor = dataset_text.map(tokenize_row, dataset_text)
-
-        super().__init__(
-            dataset_tensor,
-            batch_size=batch_size, 
-            collate_fn=collate_fn,
-            shuffle=shuffle,
-            num_workers=num_workers,
-        )
-
 class BatchWiseDataLoader(DataLoader):
     def __init__(
         self, 

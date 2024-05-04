@@ -16,15 +16,27 @@ from accelerate.utils import tqdm
 from absl import logging
 import wandb
 
+from modules.DistillSpec import DistillSpec
+from modules.SpeculateDecoding import SD
+from datamodules.OnPolicyDataModule import OnPolicyDataModule
 from utils.util import _save
 
 def get_trainer(policy):
-    trainer_mapping = {
-        'DistillSpec': DistllSpecTrainer,
-    }
-    return trainer_mapping[policy]
+    return Trainer
 
-class DistllSpecTrainer(object):
+def get_policy(policy):
+    policy_mapping = {
+        'DistillSpec': DistillSpec,
+    }
+    return policy_mapping[policy]
+
+def get_data_module(data_module):
+    data_module_mapping = {
+        'batch': OnPolicyDataModule,
+    }
+    return data_module_mapping[data_module]
+
+class Trainer(object):
     def __init__(
         self,
         _config,
@@ -34,12 +46,18 @@ class DistllSpecTrainer(object):
     ):        
         self._config = _config
 
-        self.drf_model = drf_model.to("cuda") # self.drf_model to train
-        self.tokenizer = tokenizer
+        # Speculative Decoding 
+        self.sd = SD(_config, drf_model, tgt_model, tokenizer)
+        
+        # policy (DS, RL)
+        self.policy = get_policy(_config['policy'])(_config, self.sd)
+
+        # DataModule
+        self.datamodule = get_data_module(_config['data_gen'])(_config, self.sd)
 
         # # Save/load, logging
-        # self.output_dir = _config['output_dir']
-        # self.debug = _config['debug']
+        self.output_dir = _config['output_dir']
+        self.debug = _config['debug']
 
     def train(self):
         # get train dataloader with new response
