@@ -1,3 +1,5 @@
+from typing import Any, Dict, List
+
 import torch
 from torch.utils.data import DataLoader
 
@@ -15,36 +17,35 @@ class PromptIterator(DataLoader):
 class BatchWiseDataLoader(DataLoader):
     def __init__(
         self, 
-        get_target_batch,
-        prompt_iterator, 
+        dataset_text,
+        data_generation_policy, 
         add_task_prompt,
         batch_size, 
         split, 
-        itrwise_collate_fn,
         shuffle,
         num_workers,
-        multiply_draft_pair,
         **kwargs,
         ):
-        self.get_target_batch = get_target_batch
+        self.data_generation_policy = data_generation_policy
 
         self.add_task_prompt = add_task_prompt
-        self.itrwise_collate_fn = itrwise_collate_fn
         self.split = split
 
-        batch_size = batch_size * multiply_draft_pair if split!='train' else batch_size
+        self.label_pad_token_id = -100
 
-        dataset_text = prompt_iterator.dataset
         super().__init__(
-            dataset_text,
+            dataset=dataset_text,
             batch_size=batch_size, 
-            collate_fn=self.batchwise_collate_fn,
+            collate_fn=self.collate_fn_onpolicy,
             shuffle=shuffle,
             num_workers=num_workers,
         )
 
-    def batchwise_collate_fn(self, features):
-        # Todo: {DistillSpec/DPO}*{itreration/batch}
+    def collate_fn_onpolicy(self, features: List[Dict[str, Any]]):
         prompts = self.add_task_prompt(features, is_collate=True)
-        _features = self.get_target_batch(prompts, self.split)
-        return self.itrwise_collate_fn.__call__(_features)
+        
+        return self.data_generation_policy(prompts, self.split)
+    
+
+
+

@@ -16,8 +16,12 @@ def config():
     # policy: DS, RL
     policy = "DistillSpec"
 
+    # data generation
+    data_gen = "batch" # "data generation method" 
+    
     # Iterative setting config
-    max_prompt_length = 2048 # len(x)
+    max_prompt_length = 256 # len(x)
+    # max_prompt_length = 2048 # len(x)
     max_target_length = 128 # N
     max_chunk_length = 10 # K
 
@@ -61,5 +65,5 @@ def DS():
     raise NotImplementedError
 
 @ex.named_config
-def RLS():
+def RL():
     raise NotImplementedError

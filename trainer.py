@@ -47,7 +47,10 @@ class Trainer(object):
         self._config = _config
 
         # Speculative Decoding 
-        self.sd = SD(_config, drf_model, tgt_model, tokenizer)
+        self.drf_model = drf_model
+        self.tgt_model = tgt_model
+        self.tokenizer = tokenizer
+        self.sd = SD(_config, self.drf_model, self.tgt_model, self.tokenizer)
         
         # policy (DS, RL)
         self.policy = get_policy(_config['policy'])(_config, self.sd)
@@ -61,27 +64,26 @@ class Trainer(object):
 
     def train(self):
         # get train dataloader with new response
-        self.train_dataloader = self.datamodule.get_dataloader("train")
-        self.counter.set_config_itr(self.train_dataloader)
+        train_dataloader = self.datamodule.get_dataloader("train")
+        # self.counter.set_config_itr(self.train_dataloader)
         self.optimizer, self.lr_scheduler = self.get_optimizers()
 
         # Sanity check: validation at the starting point
         self.validate()
-        for epoch in range(self.n_epochs):
-            # Todo: check if batch made is ok (collator, etc..)
-            for batch in tqdm(iterable=self.train_dataloader, desc=f"[Iteration {self.iteration:2d}] train: Epoch {epoch + 1}"):
+        for epoch in range(self._config['n_epochs']):
+            for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch + 1}"):
                 self.drf_model.train()
                 self.optimizer.zero_grad(set_to_none=True)
                 loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split="train")
                 loss.backward()
                 self.optimizer.step()
                 
-                self.counter(loss, metrics, self.optimizer, split="train")
+                # self.counter(loss, metrics, self.optimizer, split="train")
                 
-                if self.counter.is_logging():
-                    self.log()
-                if self.counter.is_valid():
-                    self.validate()
+                # if self.counter.is_logging():
+                #     self.log()
+                # if self.counter.is_valid():
+                #     self.validate()
                 
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
@@ -91,18 +93,18 @@ class Trainer(object):
         eval_dataloader = self.datamodule.get_dataloader(split)
 
         self.drf_model.eval()
-        for batch in tqdm(iterable=eval_dataloader, desc=f"[Iteration {self.iteration:2d}] {split}"):
+        for batch in tqdm(iterable=eval_dataloader, desc=f"[{split}: "):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
-            self.counter(loss, metrics, split=split)
+            # self.counter(loss, metrics, split=split)
 
-        if not self.debug:
-            wandb.log(self.counter.get_log(split))
+        # if not self.debug:
+        #     wandb.log(self.counter.get_log(split))
 
     def validate(self):
         self.inference("valid")
 
     def test(self):
-        self.counter.set_config_itr()
+        # self.counter.set_config_itr()
         self.inference("test")
     
     @torch.no_grad()
@@ -121,18 +123,23 @@ class Trainer(object):
         num_warmup_steps = int(0.01 * num_training_steps)  
 
         if self._config['lr_scheduler'] == "cosine_warmup":
-            lr_scheduler = optimization.get_cosine_schedule_with_warmup(optimizer, 
-                                                                    num_warmup_steps=num_warmup_steps, 
-                                                                    num_training_steps=num_training_steps)
+            lr_scheduler = optimization.get_cosine_schedule_with_warmup(
+                                            optimizer, 
+                                            num_warmup_steps=num_warmup_steps, 
+                                            num_training_steps=num_training_steps
+                                        )
         else:
             raise ValueError(f"Invalid lr_scheduler: {self._config['lr_scheduler']}")
         return optimizer, lr_scheduler
     
-    def save_model_itr(self):
+    def save_model(self):
         """
         Save the drf_model for iteration
         """
-        save_dir = os.path.join(self.output_dir, f"itr_{self.iteration}")
-        logging.info(f"[Iteration {self.iteration:2d}]: Saving the drf_model to {save_dir} ...")
+        save_dir = self.output_dir
+        logging.info(f"[Saving the drf_model to {save_dir} ...")
 
-        _save(self, save_dir)
+        _save(
+            model=self.sd.drf_model, 
+            save_dir=save_dir,
+            config=self._config,)

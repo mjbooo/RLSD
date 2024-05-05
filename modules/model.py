@@ -19,11 +19,13 @@ def load_models(_config):
 			model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 			model.save_pretrained(local_path)
 
-		models.append(AutoModelForSeq2SeqLM.from_pretrained(local_path))
+		model = AutoModelForSeq2SeqLM.from_pretrained(local_path)		
+		models.append(model)
 
 	return models[0], models[1].eval()
 
 def load_tokenizers(_config, max_target_length):
 	drf_tokenizer = AutoTokenizer.from_pretrained(_config['drf'], model_max_length=max_target_length)
 	tgt_tokenizer = AutoTokenizer.from_pretrained(_config['tgt'], model_max_length=max_target_length)
+
 	return drf_tokenizer, tgt_tokenizer
