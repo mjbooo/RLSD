@@ -26,7 +26,6 @@ class DataModule:
         self.dataset_name = _config['dataset']
         self.datasets = self.load_dataset()
         self.task_prompt = get_task_prompt(self.dataset_name)
-        # self.label_pad_token_id = _config['label_pad_token_id']
 
         self.max_prompt_length = _config['max_prompt_length']
         self.max_chunk_length = _config['max_chunk_length']

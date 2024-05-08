@@ -23,7 +23,7 @@ def config():
     max_prompt_length = 256 # len(x)
     # max_prompt_length = 2048 # len(x)
     max_target_length = 128 # N
-    max_chunk_length = 10 # K
+    max_chunk_length = 5 # K
 
     temperature = 1.0 # "temperature for sampling during drf_model.generate")
     seed = 2024 # "setting seed"
