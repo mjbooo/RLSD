@@ -35,7 +35,7 @@ class DistillSpec(Policy):
         outputs_tgt = self.tgt_model(
             input_ids=batch['input_ids'], 
             attention_mask=batch['attention_mask'],
-            labels=batch['labels'],
+            decoder_input_ids=batch['labels'],
             output_attentions=False,
             output_hidden_states=False,
         )
@@ -132,8 +132,9 @@ class DistillSpec(Policy):
         
 
         # 1. exact reward
-        q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze().cpu()
-        p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze().cpu()
+        q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
+        p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
+
         mask = mask.cpu()
         probability_ratio = p_tgt_labels / q_drf_labels
 
