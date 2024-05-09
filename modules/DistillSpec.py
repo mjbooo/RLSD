@@ -27,11 +27,24 @@ class DistillSpec(Policy):
     ):
         """
         Compute the KL loss  for distillation and other metrics for the given batch of inputs for train or test.
+        batch['labels']: (B, S+1) - S+1: start token added
         """
         # 1. get output for (x, y) pair and offload large model
         # <IMPORTANT> Todo: Check - (1) decoder_input_ids key: doesn't work / (2) labels key: works
         self.tgt_model.to(self.drf_model.device).eval()
 
+        # get grad_fn
+        if split=='train':
+            outputs_drf = self.drf_model(
+                input_ids=batch['input_ids'], 
+                attention_mask=batch['attention_mask'],
+                decoder_input_ids=batch['labels'][:, :-1], # To keep (B, S), not (B, S+1)
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+        else:
+            outputs_drf = batch
+        
         with torch.no_grad():
             outputs_tgt = self.tgt_model(
                 input_ids=batch['input_ids'], 
@@ -49,8 +62,9 @@ class DistillSpec(Policy):
         mask: (B, S+1) - S+1: start token + real draft
         """
         q_drf, p_tgt, mask = self.get_probability_and_mask(
-            outputs_drf = batch, # from drf_model
+            outputs_drf = outputs_drf, # from drf_model
             outputs_tgt = outputs_tgt, # from tgt_model
+            labels_drf = batch['labels']
         )
         
         # 3. compute loss with probabilities
@@ -74,22 +88,20 @@ class DistillSpec(Policy):
         self, 
         outputs_drf: Dict[str, torch.Tensor],
         outputs_tgt: Dict[str, torch.Tensor],
+        labels_drf
     ):
         """
         Compute the probability for the given batch of inputs.
         # Input: two logit tensors from two models
         """
-        # define the loss type for distillation
-        label_pad_token_id = -100
 
         # mask for pad (True indicates pad token)
-        labels_drf = outputs_drf['labels']
         mask_start = torch.zeros(size=(labels_drf.size(0), 1)).bool()
         mask_sequences = (labels_drf[:, 1:] == self.sd.tokenizer.pad_token_id).cpu() 
         mask = torch.cat([mask_start, mask_sequences], dim=1)
 
         # logits_drf, logits_tgt
-        logits_drf = outputs_drf['logits_drf']
+        logits_drf = outputs_drf['logits']
         logits_tgt = outputs_tgt.logits
         
         # get loss value

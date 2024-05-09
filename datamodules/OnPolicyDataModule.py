@@ -24,10 +24,12 @@ class OnPolicyDataModule(DataModule):
         shuffle = True if split == 'train' else False
         
         dataset_text = self.datasets[split]
+        batch_size = self._config['batch_train'] if split!='valid_tiny' else 1
+
 
         kwargs_dataloader = dict(
             dataset_text=dataset_text,
-            batch_size=self._config['batch_train'],
+            batch_size=batch_size,
             split=split,
             shuffle=shuffle,
             num_workers=0,            
@@ -57,7 +59,6 @@ class OnPolicyDataModule(DataModule):
             'input_ids': inputs_prompts['input_ids'],
             'attention_mask': inputs_prompts['attention_mask'],
             'labels': outputs_drf['sequences'],
-            'logits_drf': rearrange(torch.stack(outputs_drf.logits), 's b v -> b s v')
+            'logits': rearrange(torch.stack(outputs_drf.logits), 's b v -> b s v')
         }
-
         return _features

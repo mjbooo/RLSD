@@ -100,6 +100,26 @@ class Trainer(object):
                     self.lr_scheduler.step()
 
     @torch.no_grad()
+    def measure_acceptance_rate(self, split: Literal["valid_tiny"]):
+        # Todo: AR for tiny valid data
+        tiny_valid_dataloader = self.datamodule.get_dataloader(split)
+        self.sd.tgt_model.to(self.sd.drf_model.device).eval()
+        for batch in tqdm(iterable=tiny_valid_dataloader, desc=f"[{split}: "):
+            del batch['logits_drf']
+            # chunk length = 5 by default
+            decoded_sample, cum_n_matches = self.sd.tgt_model.generate(
+                                    **batch,
+                                    max_new_tokens=self._config['max_target_length'],
+                                    do_sample=True,
+                                    assistant_model=self.sd.drf_model,
+                                )
+            total_length = decoded_sample.shape[1] - 1
+            metrics = {'acceptance_rate': cum_n_matches / total_length }
+
+            self.counter(torch.tensor([-100]), metrics, split=split)
+        self.sd.tgt_model.to('cpu').eval()
+    
+    @torch.no_grad()
     def inference(self, split: Literal["valid", "test"]):
         eval_dataloader = self.datamodule.get_dataloader(split)
 
@@ -107,6 +127,9 @@ class Trainer(object):
         for batch in tqdm(iterable=eval_dataloader, desc=f"[{split}: "):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
             self.counter(loss, metrics, split=split)
+        
+        if split == "valid":
+            self.measure_acceptance_rate("valid_tiny")
 
         if not self.debug:
             wandb.log(self.counter.get_log(split))

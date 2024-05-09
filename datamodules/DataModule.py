@@ -39,12 +39,14 @@ class DataModule:
             return dict(
                 train=Dataset(dataset['train']._data[:100]),
                 valid=Dataset(dataset['validation']._data[:5]),
+                valid_tiny=Dataset(dataset['validation']._data[:5]),
                 test=Dataset(dataset['test']._data[:10]),
             )
         else:
             return dict(
                 train=dataset['train'],
                 valid=dataset['validation'],
+                valid_tiny=Dataset(dataset['validation']._data[:50]),
                 test=dataset['test'],
             )
 
