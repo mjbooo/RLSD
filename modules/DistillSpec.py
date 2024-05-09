@@ -13,11 +13,14 @@ from transformers import PreTrainedModel
 from accelerate.utils import tqdm
 
 from modules.Policy import Policy
+from utils.util import disable_dropout_in_model
 
 
 class DistillSpec(Policy):
     def __init__(self, _config, sd, **kwargs):
         super().__init__(_config, sd)
+        # disable dropout for draft model (DistillSpec Appendix)
+        disable_dropout_in_model(self.sd.drf_model)
 
     def get_batch_loss_metrics(
         self,

@@ -1,4 +1,5 @@
 import os, glob, sys, random, pickle, copy, resource, logging
+import torch
 import torch.multiprocessing as mp
 import numpy as np
 from datetime import datetime
@@ -53,3 +54,8 @@ def _save(model, save_dir, config):
     model.save_pretrained(save_dir)
     with open(os.path.join(save_dir, 'config_sacred.yaml'), 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
+
+def disable_dropout_in_model(model: torch.nn.Module) -> None:
+    for module in model.modules():
+        if isinstance(module, torch.nn.Dropout):
+            module.p = 0
