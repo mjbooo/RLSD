@@ -28,17 +28,19 @@ class DistillSpec(Policy):
         """
         Compute the KL loss  for distillation and other metrics for the given batch of inputs for train or test.
         """
-        # 1. get output for (x, y) pair
+        # 1. get output for (x, y) pair and offload large model
         # <IMPORTANT> Todo: Check - (1) decoder_input_ids key: doesn't work / (2) labels key: works
         self.tgt_model.to(self.drf_model.device).eval()
 
-        outputs_tgt = self.tgt_model(
-            input_ids=batch['input_ids'], 
-            attention_mask=batch['attention_mask'],
-            decoder_input_ids=batch['labels'],
-            output_attentions=False,
-            output_hidden_states=False,
-        )
+        with torch.no_grad():
+            outputs_tgt = self.tgt_model(
+                input_ids=batch['input_ids'], 
+                attention_mask=batch['attention_mask'],
+                decoder_input_ids=batch['labels'],
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+        self.tgt_model.to('cpu').eval()
 
         # 2. compute probabilities from logits
         """
@@ -119,6 +121,7 @@ class DistillSpec(Policy):
 
         return loss
     
+    @torch.no_grad
     def get_metrics(
         self,
         q_drf: torch.FloatTensor,

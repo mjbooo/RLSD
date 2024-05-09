@@ -31,7 +31,7 @@ def config():
     dataset = "cnn_dailymail" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
     lr = 5e-4 #, "learning rate"
     lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
-    batch_train = 8 # "batch size"
+    batch_train = 1 # "batch size"
     n_epochs = 2 # "The number of total epochs"
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
@@ -40,7 +40,7 @@ def config():
 
     # Logging config
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
-    valid_steps = 0.05 # if the value <1, then it works as a ratio for a single epoch
+    valid_steps = 0.2 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name
 
     # Path config
