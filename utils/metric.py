@@ -43,12 +43,12 @@ class Metric:
         """return dict for wandb logging"""
         logs = dict()
         
+        logs[f'step'] = self.cum_train_step
+        logs[f'epoch'] = self.cum_train_step / self.train_step_per_epoch
         if split == "train":
-            logs[f'step'] = self.cum_train_step
-            logs[f'epoch'] = self.cum_train_step / self.train_step_per_epoch
             logs['lr'] = self.cum_metrics[split]["lr"]
         for key, metrics in self.cum_metrics[split].items():
-            logs[f"{split}/{key}"] = torch.tensor(metrics).mean().item()
+            logs[f"{split}/{key}"] = torch.tensor(metrics).float().mean().item()
         del self.cum_metrics[split]
         
         return logs

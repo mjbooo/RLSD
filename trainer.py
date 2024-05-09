@@ -105,7 +105,7 @@ class Trainer(object):
         tiny_valid_dataloader = self.datamodule.get_dataloader(split)
         self.sd.tgt_model.to(self.sd.drf_model.device).eval()
         for batch in tqdm(iterable=tiny_valid_dataloader, desc=f"[{split}: "):
-            del batch['logits_drf']
+            del batch['logits']
             # chunk length = 5 by default
             decoded_sample, cum_n_matches = self.sd.tgt_model.generate(
                                     **batch,
@@ -117,6 +117,9 @@ class Trainer(object):
             metrics = {'acceptance_rate': cum_n_matches / total_length }
 
             self.counter(torch.tensor([-100]), metrics, split=split)
+        
+        if not self.debug:
+            wandb.log(self.counter.get_log(split))
         self.sd.tgt_model.to('cpu').eval()
     
     @torch.no_grad()
