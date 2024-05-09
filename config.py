@@ -41,8 +41,8 @@ def config():
     ckpt_load = None # load checkpoint model
 
     # Logging config
-    # logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
-    # valid_steps = 0.05 # if the value <1, then it works as a ratio for a single epoch
+    logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
+    valid_steps = 0.05 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name
 
     # Path config

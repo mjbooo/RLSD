@@ -145,6 +145,7 @@ class DistillSpec(Policy):
         metric_tensor['reward_exact'] = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
 
         # gather metrics
+        metrics['num_token_drf'] = num_token_drf.float().mean().item()
         for _m in custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()

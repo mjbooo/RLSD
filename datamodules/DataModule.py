@@ -25,6 +25,7 @@ class DataModule:
         # dataset
         self.dataset_name = _config['dataset']
         self.datasets = self.load_dataset()
+        self.len_dataloaders = {k: len(v)/_config['batch_train'] for k, v in self.datasets.items()}
         self.task_prompt = get_task_prompt(self.dataset_name)
 
         self.max_prompt_length = _config['max_prompt_length']
@@ -34,7 +35,6 @@ class DataModule:
 
     def load_dataset(self):
         dataset = load_from_disk(f"./datamodules/dataset/{self.dataset_name}")
-        
         if self._config['tiny_data']:
             return dict(
                 train=Dataset(dataset['train']._data[:100]),

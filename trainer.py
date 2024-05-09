@@ -20,6 +20,8 @@ from modules.DistillSpec import DistillSpec
 from modules.SpeculateDecoding import SD
 from datamodules.OnPolicyDataModule import OnPolicyDataModule
 from utils.util import _save
+from utils.metric import Metric
+
 
 def get_trainer(policy):
     return Trainer
@@ -59,13 +61,22 @@ class Trainer(object):
         self.datamodule = get_data_module(_config['data_gen'])(_config, self.sd)
 
         # # Save/load, logging
+        self.counter = Metric(_config, self.datamodule)
         self.output_dir = _config['output_dir']
         self.debug = _config['debug']
+
+        if not self.debug:
+            wandb.init(
+                entity="furiosaai",
+                project=str(_config['wandb_project_name']),
+                config=_config,
+                reinit=True
+            )
+            wandb.run.name = _config['ckpt_save']
 
     def train(self):
         # get train dataloader with new response
         train_dataloader = self.datamodule.get_dataloader("train")
-        # self.counter.set_config_itr(self.train_dataloader)
         self.optimizer, self.lr_scheduler = self.get_optimizers()
 
         # Sanity check: validation at the starting point
@@ -78,12 +89,12 @@ class Trainer(object):
                 loss.backward()
                 self.optimizer.step()
                 
-                # self.counter(loss, metrics, self.optimizer, split="train")
+                self.counter(loss, metrics, self.optimizer, split="train")
                 
-                # if self.counter.is_logging():
-                #     self.log()
-                # if self.counter.is_valid():
-                #     self.validate()
+                if self.counter.is_logging():
+                    self.log()
+                if self.counter.is_valid():
+                    self.validate()
                 
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
@@ -95,16 +106,15 @@ class Trainer(object):
         self.drf_model.eval()
         for batch in tqdm(iterable=eval_dataloader, desc=f"[{split}: "):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
-            # self.counter(loss, metrics, split=split)
+            self.counter(loss, metrics, split=split)
 
-        # if not self.debug:
-        #     wandb.log(self.counter.get_log(split))
+        if not self.debug:
+            wandb.log(self.counter.get_log(split))
 
     def validate(self):
         self.inference("valid")
 
     def test(self):
-        # self.counter.set_config_itr()
         self.inference("test")
     
     @torch.no_grad()
