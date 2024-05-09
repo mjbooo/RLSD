@@ -43,8 +43,10 @@ class SD(object):
         self.max_chunk_length = _config['max_chunk_length']
     
     def yogesh():
-        raise NotImplementedError
-    
+        """
+        Reference
+        (1) https://github.com/lucidrains/speculative-decoding
+        (2) HF: transforemrs.generation.utils.GenerationMixin.assisted_decoding
 
-        
-        
+        """
+        raise NotImplementedError
