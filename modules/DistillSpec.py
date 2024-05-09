@@ -148,6 +148,9 @@ class DistillSpec(Policy):
         acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
         metric_tensor['reward_exact'] = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
 
+        # 2. Spec decoding
+        self.sd.yogesh()
+
         # gather metrics
         metrics['num_token_drf'] = num_token_drf.float().mean().item()
         for _m in custom_metrics:
