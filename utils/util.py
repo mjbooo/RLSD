@@ -12,6 +12,13 @@ map_name_task = {
     "google-t5/t5-3b": "T5xl",
     "google-t5/t5-11b": "T5xxl",
 
+    "google/t5-small-lm-adapt": "T5lm-small",
+    "google/t5-base-lm-adapt": "T5lm-base",
+    "google/t5-large-lm-adapt": "T5lm-large",
+    "google/t5-xl-lm-adapt": "T5lm-xl",
+    "google/t5-xxl-lm-adapt": "T5lm-xxl",
+
+
     # dataset
     "cnn_dailymail": ("cnndm", "summarization"),
     "xsum": ("xsum", "summarization"),

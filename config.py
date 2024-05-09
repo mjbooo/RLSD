@@ -10,8 +10,7 @@ ex = Experiment("METER", save_git_info=False)
 def config():
     # Model config
     drf = "google/t5-small-lm-adapt" # drf model
-    tgt = "google/t5-base-lm-adapt" # target model
-    # tgt = "google/t5-xl-lm-adapt" # target model
+    tgt = "google/t5-xl-lm-adapt" # target model
     
     # policy: DS, RL
     policy = "DistillSpec"
@@ -20,8 +19,7 @@ def config():
     data_gen = "batch" # "data generation method" 
     
     # Iterative setting config
-    max_prompt_length = 256 # len(x)
-    # max_prompt_length = 2048 # len(x)
+    max_prompt_length = 2048 # len(x)
     max_target_length = 128 # N
     max_chunk_length = 5 # K
 
