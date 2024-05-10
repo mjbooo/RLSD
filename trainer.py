@@ -17,6 +17,7 @@ from absl import logging
 import wandb
 
 from modules.DistillSpec import DistillSpec
+from modules.RL import RL
 from modules.SpeculateDecoding import SD
 from datamodules.OnPolicyDataModule import OnPolicyDataModule
 from utils.util import _save
@@ -29,6 +30,7 @@ def get_trainer(policy):
 def get_policy(policy):
     policy_mapping = {
         'DistillSpec': DistillSpec,
+        'RL': RL,
     }
     return policy_mapping[policy]
 
