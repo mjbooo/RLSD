@@ -37,6 +37,7 @@ def config():
     debug = False # enable debug mode (no wandb logging)
     tiny_data = False # use small data for debugging
     ckpt_load = None # load checkpoint model
+    initial_valid = True # disable validation for step=0
 
     # Logging config
     custom_metrics = ['reward_exact']
@@ -53,6 +54,7 @@ def config():
         get_short_name(dataset),
         f"mtl-{max_target_length}",
         f"temp-{temperature}",
+        f"lr-{lr}",
         seed,
     ]
     ckpt_save = "_".join(map(str, factors))
@@ -63,12 +65,12 @@ def config():
 @ex.named_config
 def DS():
     policy = "DistillSpec"
-    raise NotImplementedError
+    wandb_project_name = "DistillSpec"
 
 @ex.named_config
 def RL():
     policy = "RL"
-    raise NotImplementedError
+    wandb_project_name = "RL_with_exact_reward"
 
 @ex.named_config
 def RL_debug():

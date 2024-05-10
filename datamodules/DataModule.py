@@ -37,7 +37,7 @@ class DataModule:
         dataset = load_from_disk(f"./datamodules/dataset/{self.dataset_name}")
         if self._config['tiny_data']:
             return dict(
-                train=Dataset(dataset['train']._data[:100]),
+                train=Dataset(dataset['train']._data[:20]),
                 valid=Dataset(dataset['validation']._data[:5]),
                 valid_tiny=Dataset(dataset['validation']._data[:5]),
                 test=Dataset(dataset['test']._data[:10]),

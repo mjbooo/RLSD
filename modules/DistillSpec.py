@@ -47,8 +47,8 @@ class DistillSpec(Policy):
         else:
             outputs_drf = batch
         
+        self.tgt_model.to(self.drf_model.device).eval()
         with torch.no_grad():
-            self.tgt_model.to(self.drf_model.device).eval()
             outputs_tgt = self.tgt_model(
                 input_ids=batch['input_ids'], 
                 attention_mask=batch['attention_mask'],
@@ -152,7 +152,7 @@ class DistillSpec(Policy):
 
         # gather metrics
         metrics['num_token_drf'] = num_token_drf.float().mean().item()
-        for _m in self.custom_metrics:
+        for _m in custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
             metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()

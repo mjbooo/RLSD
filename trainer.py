@@ -81,8 +81,8 @@ class Trainer(object):
         train_dataloader = self.datamodule.get_dataloader("train")
         self.optimizer, self.lr_scheduler = self.get_optimizers()
 
-        # Sanity check: validation at the starting point
-        self.validate()
+        if self._config['initial_valid']:
+            self.validate() # Sanity check: validation at the starting point
         for epoch in range(self._config['n_epochs']):
             for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch + 1}"):
                 self.drf_model.train()
