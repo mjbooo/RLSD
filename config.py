@@ -31,7 +31,7 @@ def config():
     dataset = "cnn_dailymail" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
     lr = 5e-4 #, "learning rate"
     lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
-    batch_train = 1 # "batch size"
+    batch_train = 2 # "batch size"
     n_epochs = 3 # "The number of total epochs"
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
@@ -69,6 +69,13 @@ def DS():
 def RL():
     policy = "RL"
     raise NotImplementedError
+
+@ex.named_config
+def RL_debug():
+    policy = "RL"
+    tgt = "google/t5-small-lm-adapt" # target model
+    debug = True # enable debug mode (no wandb logging)
+    tiny_data = True # use small data for debugging
 
 @ex.named_config
 def Debug():
