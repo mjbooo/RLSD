@@ -23,10 +23,12 @@ map_name_task = {
     # dataset
     "cnn_dailymail": ("cnndm", "summarization"),
     "xsum": ("xsum", "summarization"),
+    "wmt14": ("wmt", "translation")
 }
 
 map_prompt = {
     "summarization": "summarize: ",
+    "translation": "translate English to German: ",
 }
     
 def get_short_name(name_obj: str):

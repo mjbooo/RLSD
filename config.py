@@ -46,6 +46,7 @@ def config():
     # Path config
     root = "/pvc/home-mjlee" # root path 
     factors = [
+        policy,
         get_short_name(drf),
         get_short_name(tgt),
         get_short_name(dataset),
