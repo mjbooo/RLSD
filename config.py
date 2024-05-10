@@ -32,7 +32,7 @@ def config():
     lr = 5e-4 #, "learning rate"
     lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
     batch_train = 1 # "batch size"
-    n_epochs = 2 # "The number of total epochs"
+    n_epochs = 3 # "The number of total epochs"
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
     tiny_data = False # use small data for debugging
