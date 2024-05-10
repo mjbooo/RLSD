@@ -42,12 +42,92 @@ class SD(object):
         self.max_target_length = _config['max_target_length']
         self.max_chunk_length = _config['max_chunk_length']
     
-    def yogesh(self):
+    def sample(self, p):
+        return np.random.choice(np.arange(p.shape[-1]), p=p)
+
+    def max_fn(self, fx):
+        # Apply max(0, f(x)) to zero out negative values
+        positive_fx = torch.clamp(fx, min=0)
+
+        # Normalize the positive values
+        sum_positive_fx = positive_fx.sum()
+        return positive_fx / sum_positive_fx
+    
+    @torch.no_grad
+    def batch_sd(self, inputs_prompts, N, K):
         """
         Reference
         (1) https://github.com/lucidrains/speculative-decoding
         (2) HF: transforemrs.generation.utils.GenerationMixin.assisted_decoding
 
         """
-        breakpoint()
-        raise NotImplementedError
+
+        n = len(inputs_prompts["input_ids"][0])
+        T = len(inputs_prompts["input_ids"][0]) + N  # total tokens
+        accepted_tokens = 0
+
+        while n < T:
+            # Step 1: auto-regressive decode K tokens from draft model
+            outputs_drf = self.drf_model.generate(
+                **inputs_prompts,
+                max_new_tokens=K,
+                do_sample=True,
+                temperature=0.1,
+                output_logits=True,
+                return_dict_in_generate=True,
+                output_scores=True,
+                output_attentions=True,
+            )
+
+            draft_sequences = outputs_drf.sequences[:, -K:]
+            p = [logits.softmax(dim=1).topk(dim=1, k=1).values.squeeze().cpu().item() for logits in outputs_drf.logits[-K:]]
+
+            p_dist = [logits.softmax(dim=1).cpu() for logits in outputs_drf.logits[-K:]]
+
+            # Step 2: target model forward passes on x_draft
+            with torch.no_grad():
+                target_logits = self.tgt_model(
+                    **inputs_prompts,
+                    decoder_input_ids=draft_sequences,
+                    output_attentions=False,
+                    output_hidden_states=False
+                )
+
+            q = [logits.unsqueeze(dim=0).softmax(dim=1).topk(dim=1, k=1).values.squeeze().cpu().item() for logits in target_logits.logits[0]]
+            q_dist = [logits.unsqueeze(dim=0).softmax(dim=1).cpu() for logits in target_logits.logits[0]]
+
+            # Step 3: append draft tokens based on rejection criterion and resample
+            all_accepted = True
+            for t in range(K):
+                rand = np.random.random()
+                if rand < min(1, q[t] / p[t]):  # accepted
+                    updated_input_ids = torch.cat([inputs_prompts["input_ids"], draft_sequences[:, t:t+1]], dim=-1)
+                    updated_attention_mask = torch.ones_like(updated_input_ids)
+
+                    updated_input_ids_dict = {
+                        'input_ids': updated_input_ids,
+                        'attention_mask': updated_attention_mask
+                    }
+                    inputs_prompts = updated_input_ids_dict
+                    accepted_tokens += 1
+                    n += 1
+                else:  # rejected
+                    resampled_token = self.sample(self.max_fn(q_dist[t] - p_dist[t]))  # resample from difference
+                    updated_input_ids = torch.cat([inputs_prompts["input_ids"], torch.tensor([[resampled_token]], device=self.drf_model.device)], dim=-1)
+                    updated_attention_mask = torch.ones_like(updated_input_ids)
+
+                    updated_input_ids_dict = {
+                        'input_ids': updated_input_ids,
+                        'attention_mask': updated_attention_mask
+                    }
+                    inputs_prompts = updated_input_ids_dict
+                    n += 1
+                    all_accepted = False
+                    break
+            
+            # Step 4: if all draft tokens were accepted, sample a final token from target model
+            if all_accepted:
+                inputs_prompts = updated_input_ids_dict
+
+        acceptance_rate = accepted_tokens / T
+        return self.tokenizer.batch_decode(inputs_prompts["input_ids"]), acceptance_rate
