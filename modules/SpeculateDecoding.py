@@ -54,16 +54,33 @@ class SD(object):
         return positive_fx / sum_positive_fx
     
     @torch.no_grad
-    def batch_sd(self, inputs_prompts, N, K):
+    def batch_sd(self, inputs_prompts):
         """
         Reference
         (1) https://github.com/lucidrains/speculative-decoding
         (2) HF: transforemrs.generation.utils.GenerationMixin.assisted_decoding
+        
+        N is the total tokens to generate
+        K is the total tokens to generate by draft model for each chunk
 
         """
+        N = self.max_target_length
+        K = self.max_chunk_length
+        
+        task_prefix = "summarize: "
 
-        n = len(inputs_prompts["input_ids"][0])
-        T = len(inputs_prompts["input_ids"][0]) + N  # total tokens
+        articles = inputs_prompts['article']
+
+        input_ids = self.tokenizer([task_prefix + article for article in articles], 
+                        max_length=self.max_prompt_length,
+                        return_tensors="pt", 
+                        padding=True,
+                        truncation=True,
+                        add_special_tokens=True
+                        )
+
+        n = len(input_ids["input_ids"][0])
+        T = len(input_ids["input_ids"][0]) + N  # total tokens
         accepted_tokens = 0
 
         while n < T:
@@ -79,10 +96,10 @@ class SD(object):
                 output_attentions=True,
             )
 
-            draft_sequences = outputs_drf.sequences[:, -K:]
-            p = [logits.softmax(dim=1).topk(dim=1, k=1).values.squeeze().cpu().item() for logits in outputs_drf.logits[-K:]]
+            draft_sequences = outputs_drf.sequences[:, 1:]
+            p = [logits.softmax(dim=1).topk(dim=1, k=1).values.squeeze().cpu().item() for logits in outputs_drf.logits]
 
-            p_dist = [logits.softmax(dim=1).cpu() for logits in outputs_drf.logits[-K:]]
+            p_dist = [logits.softmax(dim=1).cpu() for logits in outputs_drf.logits]
 
             # Step 2: target model forward passes on x_draft
             with torch.no_grad():
