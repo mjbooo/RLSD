@@ -39,6 +39,7 @@ def config():
     ckpt_load = None # load checkpoint model
 
     # Logging config
+    custom_metrics = ['reward_exact']
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
     valid_steps = 0.2 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name
@@ -61,8 +62,16 @@ def config():
 # DistillSpec
 @ex.named_config
 def DS():
+    policy = "DistillSpec"
     raise NotImplementedError
 
 @ex.named_config
 def RL():
+    policy = "RL"
     raise NotImplementedError
+
+@ex.named_config
+def Debug():
+    tgt = "google/t5-small-lm-adapt" # target model
+    debug = True # enable debug mode (no wandb logging)
+    tiny_data = True # use small data for debugging

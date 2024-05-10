@@ -146,26 +146,13 @@ class DistillSpec(Policy):
     ) -> Dict[str, torch.FloatTensor]:
         metrics = {}
         metric_tensor = {}
-        custom_metrics = ['reward_exact']
         
-
-        # 1. exact reward
-        q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
-        p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
-
-        mask = mask.cpu()
-        probability_ratio = p_tgt_labels / q_drf_labels
-
-        # Don't count the padding tokens for the exact reward
-        probability_ratio[mask] = 0
         num_token_drf = (~mask).sum(dim=1) # max 128
-
-        acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
-        metric_tensor['reward_exact'] = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
+        metric_tensor['reward_exact'] = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
 
         # gather metrics
         metrics['num_token_drf'] = num_token_drf.float().mean().item()
-        for _m in custom_metrics:
+        for _m in self.custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
             metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()
