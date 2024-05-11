@@ -14,6 +14,7 @@ def config():
     
     # policy: DS, RL
     policy = "DistillSpec"
+    improved_reward = False
 
     # data generation
     data_gen = "batch" # "data generation method" 
@@ -78,9 +79,20 @@ def RL_debug():
     tgt = "google/t5-small-lm-adapt" # target model
     debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
+    initial_valid = False # disable validation for step=0
+
+@ex.named_config
+def improved_RL_debug():
+    policy = "RL"
+    improved_reward = True
+    tgt = "google/t5-small-lm-adapt" # target model
+    debug = True # enable debug mode (no wandb logging)
+    tiny_data = True # use small data for debugging
+    initial_valid = False # disable validation for step=0
 
 @ex.named_config
 def Debug():
     tgt = "google/t5-small-lm-adapt" # target model
     debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
+    initial_valid = False # disable validation for step=0

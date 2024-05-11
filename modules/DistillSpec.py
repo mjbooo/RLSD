@@ -148,11 +148,11 @@ class DistillSpec(Policy):
         metric_tensor = {}
         
         num_token_drf = (~mask).sum(dim=1) # max 128
-        metric_tensor['reward_exact'] = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
+        metric_tensor = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
 
         # gather metrics
         metrics['num_token_drf'] = num_token_drf.float().mean().item()
-        for _m in custom_metrics:
+        for _m in self.custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
             metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()

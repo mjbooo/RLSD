@@ -22,6 +22,8 @@ class RL(Policy):
         # disable dropout for draft model (DistillSpec Appendix)
         disable_dropout_in_model(self.sd.drf_model)
 
+        self.improved_reward = _config['improved_reward']
+
     def get_batch_loss_metrics(
         self,
         model,
@@ -127,9 +129,13 @@ class RL(Policy):
         # Input: two logit tensors from two models
         """
         # loss = - exact reward
-        losses = -self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
-
-        reward_exact = -losses.cpu().clone().detach()
+        reward_map = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
+        if self.improved_reward:
+            losses = - reward_map['improved_reward']
+            reward_exact = reward_map['exact_reward']
+        else:
+            losses = - reward_map['exact_reward']
+            reward_exact = reward_map['exact_reward'].cpu().clone().detach()
 
         return losses.mean(), reward_exact
     

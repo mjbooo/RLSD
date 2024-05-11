@@ -15,8 +15,9 @@ from accelerate.utils import tqdm
 
 class Policy(object):
     def __init__(self, _config, sd, **kwargs):
-    # def __init__(self, _config, sd, ref_model, custom_metrics):
         self.sd = sd
+        self._config = _config
+
         self.drf_model = sd.drf_model
         self.tgt_model = sd.tgt_model
         self.is_encoder_decoder = sd.drf_model.config.is_encoder_decoder
@@ -63,26 +64,20 @@ class Policy(object):
         probability_ratio[mask] = 0
 
         acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
+        exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
 
-        return torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
-    
-    def get_improved_reward(
-        self,
-        q_drf: torch.FloatTensor,
-        p_tgt: torch.FloatTensor,
-        labels_drf: torch.LongTensor,
-        mask: torch.BoolTensor,
-    ) -> torch.FloatTensor:
-        # 1. exact reward
-        q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
-        p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1).cpu()
+        if not self._config['improved_reward']:
+            # gradient flow along the exact_reward
+            map_reward = {'exact_reward': exact_reward}
+        
+        else:
+            # gradient flow along the improved_reward
+            map_reward = {'exact_reward': exact_reward.clone().cpu().detach()}
 
-        mask = mask.cpu()
-        probability_ratio = p_tgt_labels / q_drf_labels
+            former_term = q_drf_labels.sum(dim=-1).log()
+            latter_term = exact_reward.clone().detach()
+            addtional_term =  former_term * latter_term
 
-        # Don't count the padding tokens for the exact reward
-        probability_ratio[mask] = 0
+            map_reward['improved_reward'] = exact_reward + addtional_term
 
-        acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
-
-        return torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
+        return map_reward
