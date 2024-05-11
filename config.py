@@ -49,7 +49,7 @@ def config():
     # Path config
     root = "/pvc/home-mjlee" # root path 
     factors = [
-        policy,
+        ("Improved-"+policy if improved_reward else policy),
         get_short_name(drf),
         get_short_name(tgt),
         get_short_name(dataset),
