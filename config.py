@@ -71,24 +71,11 @@ def DS():
 @ex.named_config
 def RL():
     policy = "RL"
-    wandb_project_name = "RL_with_exact_reward"
 
 @ex.named_config
-def RL_debug():
-    policy = "RL"
-    tgt = "google/t5-small-lm-adapt" # target model
-    debug = True # enable debug mode (no wandb logging)
-    tiny_data = True # use small data for debugging
-    initial_valid = False # disable validation for step=0
-
-@ex.named_config
-def improved_RL_debug():
+def Improved_RL():
     policy = "RL"
     improved_reward = True
-    tgt = "google/t5-small-lm-adapt" # target model
-    debug = True # enable debug mode (no wandb logging)
-    tiny_data = True # use small data for debugging
-    initial_valid = False # disable validation for step=0
 
 @ex.named_config
 def Debug():
