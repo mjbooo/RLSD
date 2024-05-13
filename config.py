@@ -48,7 +48,7 @@ def config():
     # Logging config
     custom_metrics = ['exact_reward', 'acceptance_ratio_alpha']
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
-    valid_steps = 0.2 # if the value <1, then it works as a ratio for a single epoch
+    valid_steps = 0.5 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name
 
     # Path config
