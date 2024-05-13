@@ -85,8 +85,8 @@ class Trainer(object):
 
         if self._config['initial_valid']:
             self.validate() # Sanity check: validation at the starting point
-        for epoch in range(self._config['n_epochs']):
-            for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch + 1}"):
+        for epoch in range(self.datamodule.n_epochs):
+            for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch + 1}, Steps {self.counter.cum_train_step}"):
                 self.drf_model.train()
                 self.optimizer.zero_grad(set_to_none=True)
                 loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split="train")
@@ -102,6 +102,9 @@ class Trainer(object):
                 
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
+                
+                if self.counter.is_last_step():
+                    return
 
     @torch.no_grad()
     def measure_block_efficiency(self, split: Literal["valid_tiny", "test"]):
@@ -141,8 +144,8 @@ class Trainer(object):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
             self.counter(loss, metrics, split=split)
         
-            split_tiny = "valid_tiny" if split == "valid" else "test"
-            self.measure_block_efficiency(split_tiny)
+        split_tiny = "valid_tiny" if split == "valid" else "test"
+        self.measure_block_efficiency(split_tiny)
 
         if not self.debug:
             wandb.log(self.counter.get_log(split))

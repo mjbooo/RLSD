@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Optional, Union, Dict, List, Any
 import copy
 import random
+import math
 
 import torch
 import torch.nn as nn
@@ -20,6 +21,8 @@ from modules.SpeculateDecoding import SD
 class OnPolicyDataModule(DataModule):
     def __init__(self, _config, sd: SD):
         super().__init__(_config, sd)
+        # max_training_steps overrides n_epochs
+        self.n_epochs = math.ceil(_config['max_training_steps']/len(self.datasets['train']))
     
     def get_dataloader(self, split) -> DataLoader:
         shuffle = True if split == 'train' else False

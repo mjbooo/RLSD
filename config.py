@@ -38,6 +38,7 @@ def config():
     num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
     batch_train = 2 # "batch size"
     n_epochs = 3 # "The number of total epochs"
+    max_training_steps = None # "The number of total training steps". This will over ride the n_epochs
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
     tiny_data = False # use small data for debugging
@@ -71,6 +72,8 @@ def config():
 def DS():
     policy = "DistillSpec"
     wandb_project_name = "DistillSpec"
+    n_epochs = 3 # "The number of total epochs"
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
 
 @ex.named_config
 def RL():
@@ -87,12 +90,18 @@ def DS_debug():
     wandb_project_name = "DistillSpec"
     dataset = "xsum"
     optimizer = "adafactor"
+    n_epochs = 3 # "The number of total epochs"
+    valid_steps = 0.5 # if the value <1, then it works as a ratio for a single epoch
+    max_training_steps = 30 # "The number of total training steps". This will over ride the n_epochs
+    max_target_length=64
+    batch_train=1
     lr = 3e-4
     lr_scheduler = "linear_warmup_cosine_decay"
     tgt = "google/t5-small-lm-adapt" # target model
     # debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
     initial_valid = False # disable validation for step=0
+    
 
 @ex.named_config
 def Debug():
