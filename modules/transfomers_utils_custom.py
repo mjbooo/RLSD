@@ -4493,6 +4493,8 @@ class GenerationMixin:
 
         this_peer_finished = False  # used by synced_gpus only
         cum_n_matches = 0
+        cum_n_candidates = 0
+        num_itr = 0
         while True:
             if synced_gpus:
                 # Under synced_gpus the `forward` call must continue until all gpus complete their sequence.
@@ -4505,6 +4507,7 @@ class GenerationMixin:
                     break
 
             cur_len = input_ids.shape[-1]
+            num_itr+=1
 
             #  1. Fetch candidate sequences from a `CandidateGenerator`
             candidate_input_ids, candidate_logits = candidate_generator.get_candidates(input_ids)
@@ -4513,6 +4516,7 @@ class GenerationMixin:
                 candidate_logits = candidate_logits.to(self.device)
 
             candidate_length = candidate_input_ids.shape[1] - input_ids.shape[1]
+            cum_n_candidates += candidate_length
             last_assistant_token_is_eos = (
                 ~candidate_input_ids[:, -1]
                 .tile(eos_token_id_tensor.shape[0], 1)
@@ -4712,7 +4716,14 @@ class GenerationMixin:
             """
             [MJ] count the accepted lengths
             """
-            return input_ids, cum_n_matches
+            # return input_ids, cum_n_matches, cum_n_candidates
+            metrics = {
+                'cum_n_matches': cum_n_matches,
+                'cum_n_candidates': cum_n_candidates,
+                'num_itr': num_itr,
+                'gamma': candidate_generator.num_assistant_tokens,
+            }
+            return input_ids, metrics
 
 
 def _speculative_sampling(

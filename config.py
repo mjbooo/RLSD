@@ -29,7 +29,8 @@ def config():
 
     # Training config
     device = 0
-    dataset = "cnn_dailymail" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
+    dataset = "xsum" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
+    num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
     lr = 5e-4 #, "learning rate"
     lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
     batch_train = 2 # "batch size"

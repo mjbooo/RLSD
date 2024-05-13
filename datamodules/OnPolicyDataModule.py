@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Optional, Union, Dict, List, Any
 import copy
+import random
 
 import torch
 import torch.nn as nn
@@ -23,7 +24,13 @@ class OnPolicyDataModule(DataModule):
     def get_dataloader(self, split) -> DataLoader:
         shuffle = True if split == 'train' else False
         
-        dataset_text = self.datasets[split]
+        if split != 'valid_tiny':
+            dataset_text = self.datasets[split]
+        else:
+            # sampling subset from valid set
+            n = self._config['num_valid_tiny'] if not self._config['tiny_data'] else 3
+            random_ids = random.sample(range(len(self.datasets['valid'])), n)
+            dataset_text = self.datasets['valid'].select(random_ids)
         batch_size = self._config['batch_train'] if split!='valid_tiny' else 1
 
 

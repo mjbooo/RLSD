@@ -102,21 +102,27 @@ class Trainer(object):
                     self.lr_scheduler.step()
 
     @torch.no_grad()
-    def measure_acceptance_rate(self, split: Literal["valid_tiny"]):
+    def measure_block_efficiency(self, split: Literal["valid_tiny", "test"]):
         # Todo: AR for tiny valid data
         tiny_valid_dataloader = self.datamodule.get_dataloader(split)
         self.sd.tgt_model.to(self.sd.drf_model.device).eval()
         for batch in tqdm(iterable=tiny_valid_dataloader, desc=f"[{split}: "):
             del batch['logits']
             # chunk length = 5 by default
-            decoded_sample, cum_n_matches = self.sd.tgt_model.generate(
+            decoded_sample, sd_metrics = self.sd.tgt_model.generate(
                                     **batch,
                                     max_new_tokens=self._config['max_target_length'],
                                     do_sample=True,
                                     assistant_model=self.sd.drf_model,
                                 )
-            total_length = decoded_sample.shape[1] - 1
-            metrics = {'acceptance_rate': cum_n_matches / total_length }
+            
+            # decode_sample = 1 (start token) + cum_n_matches + num_itr
+            metrics = {
+                'block_efficiency_ratio': 1 + sd_metrics['cum_n_matches'] / sd_metrics['num_itr'],
+                'gamma': sd_metrics['gamma'],
+                'match_first': sd_metrics['cum_n_matches'],
+                'match_first_ratio': sd_metrics['cum_n_matches'] / (sd_metrics['num_itr']*sd_metrics['gamma']),
+                }
 
             self.counter(torch.tensor([-100]), metrics, split=split)
         
@@ -133,8 +139,8 @@ class Trainer(object):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
             self.counter(loss, metrics, split=split)
         
-        if split == "valid":
-            self.measure_acceptance_rate("valid_tiny")
+            split_tiny = "valid_tiny" if split == "valid" else "test"
+            self.measure_block_efficiency(split_tiny)
 
         if not self.debug:
             wandb.log(self.counter.get_log(split))
