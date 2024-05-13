@@ -71,9 +71,15 @@ def config():
 @ex.named_config
 def DS():
     policy = "DistillSpec"
-    wandb_project_name = "DistillSpec"
-    n_epochs = 3 # "The number of total epochs"
+    wandb_project_name = "240513DistillSpec"
+    
+    dataset = "xsum"
+    max_target_length=64
     max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
 
 @ex.named_config
 def RL():
