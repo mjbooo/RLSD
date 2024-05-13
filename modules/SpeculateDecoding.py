@@ -78,23 +78,30 @@ class SD(object):
                         truncation=True,
                         add_special_tokens=True
                         )
+        
+        decoder_input_ids = torch.full((len(inputs_prompts), 1), self.tokenizer.pad_token_id, dtype=torch.long).to(self.device)
 
-        n = len(input_ids["input_ids"][0])
-        T = len(input_ids["input_ids"][0]) + N  # total tokens
+        n = 0
         accepted_tokens = 0
 
-        while n < T:
+        while n < N:
             # Step 1: auto-regressive decode K tokens from draft model
             outputs_drf = self.drf_model.generate(
-                **inputs_prompts,
+                input_ids=input_ids["input_ids"],
+                attention_mask=input_ids["attention_mask"],
+                decoder_input_ids=decoder_input_ids,
                 max_new_tokens=K,
                 do_sample=True,
-                temperature=0.1,
+                temperature=1,
                 output_logits=True,
                 return_dict_in_generate=True,
                 output_scores=True,
                 output_attentions=True,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
             )
+            
+            generated_tokens = outputs_drf.sequences[:, -K:]
 
             draft_sequences = outputs_drf.sequences[:, 1:]
             p = [logits.softmax(dim=1).topk(dim=1, k=1).values.squeeze().cpu().item() for logits in outputs_drf.logits]
@@ -118,33 +125,20 @@ class SD(object):
             for t in range(K):
                 rand = np.random.random()
                 if rand < min(1, q[t] / p[t]):  # accepted
-                    updated_input_ids = torch.cat([inputs_prompts["input_ids"], draft_sequences[:, t:t+1]], dim=-1)
-                    updated_attention_mask = torch.ones_like(updated_input_ids)
-
-                    updated_input_ids_dict = {
-                        'input_ids': updated_input_ids,
-                        'attention_mask': updated_attention_mask
-                    }
-                    inputs_prompts = updated_input_ids_dict
+                    # update decoder inputs here, there will be a different number of tokens accepted
+                    decoder_input_ids = torch.cat([decoder_input_ids, generated_tokens], dim=-1)
                     accepted_tokens += 1
                     n += 1
                 else:  # rejected
                     resampled_token = self.sample(self.max_fn(q_dist[t] - p_dist[t]))  # resample from difference
-                    updated_input_ids = torch.cat([inputs_prompts["input_ids"], torch.tensor([[resampled_token]], device=self.drf_model.device)], dim=-1)
-                    updated_attention_mask = torch.ones_like(updated_input_ids)
-
-                    updated_input_ids_dict = {
-                        'input_ids': updated_input_ids,
-                        'attention_mask': updated_attention_mask
-                    }
-                    inputs_prompts = updated_input_ids_dict
+                    # update decoder input with the resampled token
                     n += 1
                     all_accepted = False
                     break
             
             # Step 4: if all draft tokens were accepted, sample a final token from target model
             if all_accepted:
-                inputs_prompts = updated_input_ids_dict
+                decoder_input_ids = torch.cat([decoder_input_ids, generated_tokens], dim=-1)
 
         acceptance_rate = accepted_tokens / T
         return self.tokenizer.batch_decode(inputs_prompts["input_ids"]), acceptance_rate
