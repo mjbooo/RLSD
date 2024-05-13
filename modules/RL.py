@@ -146,7 +146,7 @@ class RL(Policy):
         p_tgt: torch.FloatTensor,
         labels_drf: torch.LongTensor,
         mask: torch.BoolTensor,
-        reward_exact: torch.FloatTensor,
+        exact_reward: torch.FloatTensor,
     ) -> Dict[str, torch.FloatTensor]:
         
         metrics = {}
@@ -155,13 +155,14 @@ class RL(Policy):
         num_token_drf = (~mask).sum(dim=1) # max 128
 
         # 1. exact reward (= -loss)
-        metric_tensor['reward_exact'] = reward_exact
+        metric_tensor['exact_reward'] = exact_reward
 
         # gather metrics
         metrics['num_token_drf'] = num_token_drf.float().mean().item()
         for _m in self.custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
-            metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()
+            if not 'ratio' in _m:
+                metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()
 
         return metrics

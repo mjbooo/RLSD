@@ -144,17 +144,25 @@ class DistillSpec(Policy):
         labels_drf: torch.LongTensor,
         mask: torch.BoolTensor,
     ) -> Dict[str, torch.FloatTensor]:
+        """
+        No start token in input
+        """
         metrics = {}
         metric_tensor = {}
         
-        num_token_drf = (~mask).sum(dim=1) # max 128
+        # exact reward / acceptance_rate_alpha
         metric_tensor = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
 
+        # offload to cpu
+        for k, v in metric_tensor.items():
+            metric_tensor[k] = v.to('cpu').detach()
+
         # gather metrics
-        metrics['num_token_drf'] = num_token_drf.float().mean().item()
+        metrics['num_token_drf'] = metric_tensor['num_token_drf'].float().mean().item()
         for _m in self.custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
-            metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()
+            if not 'ratio' in _m:
+                metrics[_m + '_ratio'] = (metric_tensor[_m] / metrics['num_token_drf']).mean().item()
 
         return metrics

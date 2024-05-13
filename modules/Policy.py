@@ -53,6 +53,14 @@ class Policy(object):
         labels_drf: torch.LongTensor,
         mask: torch.BoolTensor,
     ) -> torch.FloatTensor:
+        """
+        No start token in input
+        """
+        map_reward = dict()
+
+        # 0. num_token_drf
+        map_reward['num_token_drf'] = (~mask).sum(dim=1).cpu() # max 128
+
         # 1. exact reward
         q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
         p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
@@ -64,15 +72,18 @@ class Policy(object):
         probability_ratio[mask] = 0
 
         acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
-        exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
+        
+        # 2. acceptance_rate_alpha
+        map_reward['acceptance_ratio_alpha'] = (acceptance_ratio.cpu().sum(-1)/ map_reward['num_token_drf']).mean()
 
+        exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
+        # 3. exact_reward / improved_reward
         if not self._config['improved_reward']:
             # gradient flow along the exact_reward
-            map_reward = {'exact_reward': exact_reward}
-        
+            map_reward['exact_reward'] = exact_reward
         else:
             # gradient flow along the improved_reward
-            map_reward = {'exact_reward': exact_reward.clone().cpu().detach()}
+            map_reward['exact_reward'] = exact_reward.clone().cpu().detach()
 
             former_term = q_drf_labels.sum(dim=-1).log()
             latter_term = exact_reward.clone().detach()
@@ -81,3 +92,10 @@ class Policy(object):
             map_reward['improved_reward'] = exact_reward + addtional_term
 
         return map_reward
+    
+    @torch.no_grad()
+    def get_metrics(self):
+        """
+        No start token in input
+        """
+        raise NotImplementedError

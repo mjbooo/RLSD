@@ -41,7 +41,7 @@ def config():
     initial_valid = True # disable validation for step=0
 
     # Logging config
-    custom_metrics = ['reward_exact']
+    custom_metrics = ['exact_reward', 'acceptance_ratio_alpha']
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
     valid_steps = 0.2 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name
@@ -76,6 +76,15 @@ def RL():
 def Improved_RL():
     policy = "RL"
     improved_reward = True
+
+@ex.named_config
+def DS_debug():
+    policy = "DistillSpec"
+    wandb_project_name = "DistillSpec"
+    tgt = "google/t5-small-lm-adapt" # target model
+    debug = True # enable debug mode (no wandb logging)
+    tiny_data = True # use small data for debugging
+    initial_valid = False # disable validation for step=0
 
 @ex.named_config
 def Debug():
