@@ -27,6 +27,8 @@ flags.DEFINE_integer("max_training_steps", 100000, "batch size for training") # 
 
 flags.DEFINE_integer("batch_train", 32, "batch size for training")
 flags.DEFINE_integer("batch_eval", 128, "batch size for evaluation")
+# gradient_a
+flags.DEFINE_integer("gradient_accumulation_steps", 1, "The number of gradient accumulation steps")
 flags.DEFINE_string("wandb_project_name", "240512_SFT", "The name of wandb project")
 flags.DEFINE_boolean("tiny_data", False, "Use tiny data for debugging")
 
@@ -122,6 +124,7 @@ def main(argv):
         logging_steps=100,
         per_device_train_batch_size=FLAGS.batch_train,
         per_device_eval_batch_size=FLAGS.batch_eval,
+        gradient_accumulation_steps=FLAGS.gradient_accumulation_steps,
         weight_decay=0,
         save_total_limit=3,
         max_steps=FLAGS.max_training_steps,
