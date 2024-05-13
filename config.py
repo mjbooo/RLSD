@@ -67,14 +67,12 @@ def config():
     output_dir = f"{root}/data/ImprovedSD/checkpoint/{ckpt_save}"
 
     
-# DistillSpec
+# Policy
 @ex.named_config
 def DS():
     policy = "DistillSpec"
     wandb_project_name = "240513DistillSpec"
     
-    dataset = "xsum"
-    max_target_length=64
     max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
     batch_train=32
     optimizer = "adafactor"
@@ -90,6 +88,14 @@ def Improved_RL():
     policy = "RL"
     improved_reward = True
 
+# Dataset
+@ex.named_config
+def Xsum():
+    dataset = "xsum"
+    max_prompt_length=1024
+    max_target_length=64
+
+# Debug
 @ex.named_config
 def DS_debug():
     policy = "DistillSpec"
