@@ -27,12 +27,15 @@ def config():
     temperature = 1.0 # "temperature for sampling during drf_model.generate")
     seed = 2024 # "setting seed"
 
+    # Optimizer config
+    optimizer = "adafactor"
+    lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
+    lr = 3e-4 #, "learning rate"
+
     # Training config
     device = 0
     dataset = "xsum" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
     num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
-    lr = 5e-4 #, "learning rate"
-    lr_scheduler = "fixed" # "learning rate scheduler" Literal["fixed", "cosine_warmup"]
     batch_train = 2 # "batch size"
     n_epochs = 3 # "The number of total epochs"
     eval = False # "enable eval mode"
@@ -82,8 +85,12 @@ def Improved_RL():
 def DS_debug():
     policy = "DistillSpec"
     wandb_project_name = "DistillSpec"
+    dataset = "xsum"
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
     tgt = "google/t5-small-lm-adapt" # target model
-    debug = True # enable debug mode (no wandb logging)
+    # debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
     initial_valid = False # disable validation for step=0
 

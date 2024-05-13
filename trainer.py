@@ -1,10 +1,12 @@
 import os
 import warnings
+import math
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
-import torch.optim.lr_scheduler as LambdaLR
+# import torch.optim.lr_scheduler as LambdaLR
+from torch.optim.lr_scheduler import LambdaLR
 
 from datasets.formatting import get_formatter, query_table, format_table
 from transformers import (
@@ -159,19 +161,28 @@ class Trainer(object):
     def get_optimizers(self):
         # Todo: Optimizer: Warm-up, cool-down schdule
         
-        optimizer = torch.optim.AdamW(self.drf_model.parameters(), lr=self._config['lr'], weight_decay=0)
+        if self._config['optimizer'] == "adamw":
+            optimizer = torch.optim.AdamW(self.drf_model.parameters(), lr=self._config['lr'], weight_decay=0)
+        elif self._config['optimizer'] == "adafactor":
+            optimizer = optimization.Adafactor(self.drf_model.parameters(), lr=self._config['lr'], relative_step=False, scale_parameter=False, warmup_init=False)
+                    
         if self._config['lr_scheduler'] == "fixed":
             return optimizer, None
-        
-        num_training_steps = self.counter.total_train_step
-        num_warmup_steps = int(0.01 * num_training_steps)  
-
-        if self._config['lr_scheduler'] == "cosine_warmup":
-            lr_scheduler = optimization.get_cosine_schedule_with_warmup(
-                                            optimizer, 
-                                            num_warmup_steps=num_warmup_steps, 
-                                            num_training_steps=num_training_steps
-                                        )
+        elif self._config['lr_scheduler'] == "linear_warmup_cosine_decay":
+            warmup_steps = int(1/60 * self.counter.total_train_step)
+            cooldown_start = int(1/2 * self.counter.total_train_step)
+            cooldown_end = self.counter.total_train_step
+            
+            def lr_lambda(current_step: int):
+                if current_step < warmup_steps:
+                    return float(current_step) / float(max(1, warmup_steps))
+                elif current_step < cooldown_start:
+                    return 1.0
+                else:
+                    progress = float(current_step - cooldown_start) / float(max(1, cooldown_end - cooldown_start))
+                    return 0.45 * (1.0 + math.cos(math.pi * progress)) + 0.1
+            
+            lr_scheduler = LambdaLR(optimizer, lr_lambda)
         else:
             raise ValueError(f"Invalid lr_scheduler: {self._config['lr_scheduler']}")
         return optimizer, lr_scheduler
