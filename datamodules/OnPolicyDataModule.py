@@ -34,7 +34,7 @@ class OnPolicyDataModule(DataModule):
             n = self._config['num_valid_tiny'] if not self._config['tiny_data'] else 3
             random_ids = random.sample(range(len(self.datasets['valid'])), n)
             dataset_text = self.datasets['valid'].select(random_ids)
-        batch_size = self._config['batch_train'] if split!='valid_tiny' else 1
+        batch_size = 1 if split in ['valid_tiny', 'test'] else self._config['batch_train']
 
 
         kwargs_dataloader = dict(

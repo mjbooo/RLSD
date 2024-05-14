@@ -64,38 +64,21 @@ class Policy(object):
         # 1. exact reward
         q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
         p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
+        map_reward['q_drf_labels'] = q_drf_labels # save for improved reward
 
         probability_ratio = p_tgt_labels / q_drf_labels
         mask = mask.to(probability_ratio.device)
 
         # Don't count the padding tokens for the exact reward
         probability_ratio[mask] = 0
-
-        acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
         
         # 2. acceptance_rate_alpha
+        acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
+        map_reward['acceptance_ratio'] = acceptance_ratio
         map_reward['acceptance_ratio_alpha'] = (acceptance_ratio.cpu().sum(-1)/ map_reward['num_token_drf']).mean()
 
+        # 3. exact_reward
         exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
-        # 3. exact_reward / improved_reward
-        if not self._config['improved_reward']:
-            # gradient flow along the exact_reward
-            map_reward['exact_reward'] = exact_reward
-        else:
-            # gradient flow along the improved_reward
-            map_reward['exact_reward'] = exact_reward.clone().cpu().detach()
-
-            former_term = q_drf_labels.sum(dim=-1).log()
-            latter_term = exact_reward.clone().detach()
-            addtional_term =  former_term * latter_term
-
-            map_reward['improved_reward'] = exact_reward + addtional_term
+        map_reward['exact_reward'] = exact_reward
 
         return map_reward
-    
-    @torch.no_grad()
-    def get_metrics(self):
-        """
-        No start token in input
-        """
-        raise NotImplementedError

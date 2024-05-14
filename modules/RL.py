@@ -129,10 +129,20 @@ class RL(Policy):
         """
         # loss = - exact reward
         reward_map = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
-        if self.improved_reward:
-            losses = - reward_map['improved_reward']
+        exact_reward = reward_map['exact_reward'] # (B, )
+
+        if self._config['truncation_deg']:
+            trunc_reward = self.truncate_exact_reward(reward_map['acceptance_ratio'], self._config['truncation_deg'])
+            losses = - trunc_reward
         else:
-            losses = - reward_map['exact_reward']
+            losses = - exact_reward
+
+        if self._config['improved_reward']:
+            former_term = reward_map['q_drf_labels'].sum(dim=-1).log()
+            latter_term = exact_reward.clone().detach()
+            addtional_term =  former_term * latter_term
+
+            losses = - (exact_reward + addtional_term)
 
         return losses.mean()
     
@@ -166,3 +176,10 @@ class RL(Policy):
                 metrics[_m + '_ratio'] = (metric_tensor[_m] / metrics['num_token_drf']).mean().item()
 
         return metrics
+    
+    def truncate_exact_reward(self, x, degree):
+        x = F.pad(x, (degree-1, 0), value=1)
+        # Unroll over the sequence dimension
+        windows = x.unfold(1, degree, 1)
+        # Multiply elements within each window and sum the products
+        return windows.prod(dim=-1)

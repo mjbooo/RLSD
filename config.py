@@ -57,7 +57,13 @@ def config():
     # Path config
     root = "/pvc/home-mjlee" # root path 
     if 'RL' in policy:
-        model_ckpt = "Improved-"+policy if improved_reward else policy
+        prefix = ''
+        if improved_reward:
+            prefix += "Improved-"
+        if truncation_deg:
+            prefix += f"Trun-{truncation_deg}-"
+
+        model_ckpt = prefix + policy
     elif 'DistillSpec' in policy:
         model_ckpt = f"{policy}-{divergence}"
 
