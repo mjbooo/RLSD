@@ -73,7 +73,7 @@ class RL(Policy):
         )
         
         # 3. compute loss with probabilities
-        losses, reward_exact = self.get_loss(
+        losses = self.get_loss(
                             q_drf, 
                             p_tgt[:, :-1, :], # no bonus token for calculating the loss
                             batch['labels'][:, 1:],
@@ -86,7 +86,6 @@ class RL(Policy):
                             p_tgt[:, :-1, :], # p_tgt: (B, S+1) by bonus token
                             batch['labels'][:, 1:], # don't indexing start token
                             mask[:, 1:], # don't indexing start token
-                            reward_exact,
                         )
         
         return losses, metrics
@@ -132,12 +131,10 @@ class RL(Policy):
         reward_map = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
         if self.improved_reward:
             losses = - reward_map['improved_reward']
-            reward_exact = reward_map['exact_reward']
         else:
             losses = - reward_map['exact_reward']
-            reward_exact = reward_map['exact_reward'].cpu().clone().detach()
 
-        return losses.mean(), reward_exact
+        return losses.mean()
     
     @torch.no_grad
     def get_metrics(
@@ -146,23 +143,26 @@ class RL(Policy):
         p_tgt: torch.FloatTensor,
         labels_drf: torch.LongTensor,
         mask: torch.BoolTensor,
-        exact_reward: torch.FloatTensor,
     ) -> Dict[str, torch.FloatTensor]:
-        
+        """
+        No start token in input
+        """
         metrics = {}
         metric_tensor = {}
         
-        num_token_drf = (~mask).sum(dim=1) # max 128
+        # exact reward / acceptance_rate_alpha
+        metric_tensor = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
 
-        # 1. exact reward (= -loss)
-        metric_tensor['exact_reward'] = exact_reward
+        # offload to cpu
+        for k, v in metric_tensor.items():
+            metric_tensor[k] = v.to('cpu').detach()
 
         # gather metrics
-        metrics['num_token_drf'] = num_token_drf.float().mean().item()
+        metrics['num_token_drf'] = metric_tensor['num_token_drf'].float().mean().item()
         for _m in self.custom_metrics:
             # get metric itself and in ratio
             metrics[_m] = metric_tensor[_m].mean().item()
             if not 'ratio' in _m:
-                metrics[_m + '_ratio'] = (metric_tensor[_m] / num_token_drf).mean().item()
+                metrics[_m + '_ratio'] = (metric_tensor[_m] / metrics['num_token_drf']).mean().item()
 
         return metrics

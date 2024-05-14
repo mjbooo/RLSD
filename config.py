@@ -79,6 +79,7 @@ def config():
 @ex.named_config
 def DS():
     policy = "DistillSpec"
+
     wandb_project_name = "240513DistillSpec"
     
     max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
@@ -91,10 +92,26 @@ def DS():
 def RL():
     policy = "RL"
 
+    wandb_project_name = "240513DistillSpec"
+    
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
 @ex.named_config
 def Improved_RL():
     policy = "RL"
     improved_reward = True
+    
+    wandb_project_name = "240513DistillSpec"
+    
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
 
 # Dataset
 @ex.named_config
