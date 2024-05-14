@@ -123,16 +123,19 @@ class DistillSpec(Policy):
         Compute the loss for the given batch of inputs.
         # Input: two logit tensors from two models
         """
-
-        # KL divergence loss
-        criterion = torch.nn.KLDivLoss(reduction='batchmean')
-        
         # masking out the padding part
         q_drf_masked = q_drf[~mask]
         p_tgt_masked = p_tgt[~mask]
-        
-        # get loss value
-        loss = criterion(q_drf_masked.log(), p_tgt_masked)
+
+        if self._config['divergence'] == 'kl':
+            # KL divergence loss
+            criterion = torch.nn.KLDivLoss(reduction='batchmean')
+            loss = criterion(q_drf_masked.log(), p_tgt_masked)
+
+        elif self._config['divergence'] == 'tvd':
+            # Total Variation Distance loss
+            criterion = torch.nn.L1Loss(reduction='mean')
+            loss = criterion(q_drf_masked, p_tgt_masked)
 
         return loss
     

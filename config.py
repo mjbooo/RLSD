@@ -19,6 +19,9 @@ def config():
     # data generation
     data_gen = "batch" # "data generation method" 
     
+    # DistillSpec
+    divergence = "kl" # "divergence for distillation" Literal["kl", "tvd"]
+
     # Iterative setting config
     max_prompt_length = 2048 # len(x)
     max_target_length = 128 # N
