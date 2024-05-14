@@ -56,8 +56,13 @@ def config():
 
     # Path config
     root = "/pvc/home-mjlee" # root path 
+    if 'RL' in policy:
+        model_ckpt = "Improved-"+policy if improved_reward else policy
+    elif 'DistillSpec' in policy:
+        model_ckpt = f"{policy}-{divergence}"
+
     factors = [
-        ("Improved-"+policy if improved_reward else policy),
+        model_ckpt,
         get_short_name(drf),
         get_short_name(tgt),
         get_short_name(dataset),
@@ -102,7 +107,7 @@ def Xsum():
 @ex.named_config
 def DS_debug():
     policy = "DistillSpec"
-    wandb_project_name = "DistillSpec"
+    wandb_project_name = "240513DistillSpec"
     dataset = "xsum"
     optimizer = "adafactor"
     n_epochs = 3 # "The number of total epochs"
@@ -112,10 +117,10 @@ def DS_debug():
     batch_train=1
     lr = 3e-4
     lr_scheduler = "linear_warmup_cosine_decay"
-    tgt = "google/t5-small-lm-adapt" # target model
+    # tgt = "google/t5-small-lm-adapt" # target model
     # debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
-    initial_valid = False # disable validation for step=0
+    # initial_valid = False # disable validation for step=0
     
 
 @ex.named_config

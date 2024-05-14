@@ -135,7 +135,7 @@ class DistillSpec(Policy):
         elif self._config['divergence'] == 'tvd':
             # Total Variation Distance loss
             criterion = torch.nn.L1Loss(reduction='mean')
-            loss = criterion(q_drf_masked, p_tgt_masked)
+            loss = criterion(q_drf_masked, p_tgt_masked)/2
 
         return loss
     
