@@ -17,6 +17,7 @@ class Metric:
         self.total_train_step = _config['max_training_steps'] if _config['max_training_steps'] else self.n_epochs * self.train_step_per_epoch
         self.logging_interval = self._get_interval(self._config['logging_steps'])
         self.valid_interval = self._get_interval(self._config['valid_steps'])
+        self.no_valid_until = self._config['no_valid_until']
         
     def __call__(self, mean_loss, metrics: Dict[str, float], optimizer=None, split: Literal["train", "eval", "test"] = "train") -> None:
         self.cum_metrics[split]["loss"].append(mean_loss.detach().item())
@@ -40,7 +41,10 @@ class Metric:
         return self.cum_train_step == self.total_train_step
     
     def is_valid(self) -> bool:
-        return self.cum_train_step % self.valid_interval == 0
+        is_predefined_no_valid = self.get_cum_epoch() >= self.no_valid_until
+        is_count = self.cum_train_step % self.valid_interval == 0
+        
+        return is_count and is_predefined_no_valid
 
     def get_log(self, split) -> None:
         """return dict for wandb logging"""
@@ -64,7 +68,7 @@ class Metric:
 
     def get_cum_epoch(self):
         # if batch_size < len(dataset)
-        train_step_per_epoch = math.ceil(self.train_step_per_epoch)
+        train_step_per_epoch = self.train_step_per_epoch
         return math.ceil(self.cum_train_step / train_step_per_epoch)
     
     def state_dict(self):

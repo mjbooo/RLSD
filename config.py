@@ -49,7 +49,7 @@ def config():
     num_simple = 1000 # number of samples in train set for simple setup
     tiny_data = False # use small data for debugging
     initial_valid = True # disable validation for step=0
-    no_valid_until = None # disable validation until the epoch
+    no_valid_until = -1 # disable validation until the epoch "no_valid_until"
 
     # load
     ckpt_dir = None # load checkpoint model

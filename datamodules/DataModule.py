@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Optional, Union, Dict, List, Any
 import copy
+import math
 
 import torch
 import torch.nn as nn
@@ -25,7 +26,7 @@ class DataModule:
         # dataset
         self.dataset_name = _config['dataset']
         self.datasets = self.load_dataset()
-        self.len_dataloaders = {k: len(v)/_config['batch_train'] for k, v in self.datasets.items()}
+        self.len_dataloaders = {k: math.ceil(len(v)/_config['batch_train']) for k, v in self.datasets.items()}
         self.task_prompt = get_task_prompt(self.dataset_name)
 
         self.max_prompt_length = _config['max_prompt_length']
