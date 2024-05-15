@@ -22,7 +22,10 @@ class OnPolicyDataModule(DataModule):
     def __init__(self, _config, sd: SD):
         super().__init__(_config, sd)
         # max_training_steps overrides n_epochs
-        self.n_epochs = math.ceil(_config['max_training_steps']/len(self.datasets['train']))
+        if _config['max_training_steps']:
+            self.n_epochs = math.ceil(_config['max_training_steps']/len(self.datasets['train']))
+        else:
+            self.n_epochs = _config['n_epochs']
     
     def get_dataloader(self, split) -> DataLoader:
         shuffle = True if split == 'train' else False
