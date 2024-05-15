@@ -75,7 +75,7 @@ class Policy(object):
         # 2. acceptance_rate_alpha
         acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
         map_reward['acceptance_ratio'] = acceptance_ratio
-        map_reward['acceptance_ratio_alpha'] = (acceptance_ratio.cpu().sum(-1)/ map_reward['num_token_drf']).mean()
+        map_reward['acceptance_ratio_alpha'] = (acceptance_ratio.cpu().detach().sum(-1)/ map_reward['num_token_drf']).mean()
 
         # 3. exact_reward
         exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)

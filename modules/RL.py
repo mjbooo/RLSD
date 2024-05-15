@@ -133,16 +133,16 @@ class RL(Policy):
 
         if self._config['truncation_deg']:
             trunc_reward = self.truncate_exact_reward(reward_map['acceptance_ratio'], self._config['truncation_deg'])
-            losses = - trunc_reward
+            reward = trunc_reward
         else:
-            losses = - exact_reward
+            reward = exact_reward
 
         if self._config['improved_reward']:
             former_term = reward_map['q_drf_labels'].sum(dim=-1).log()
-            latter_term = exact_reward.clone().detach()
-            addtional_term =  former_term * latter_term
+            latter_term = reward.clone().detach()            
+            reward += former_term * latter_term
 
-            losses = - (exact_reward + addtional_term)
+        losses = - reward
 
         return losses.mean()
     
@@ -182,4 +182,4 @@ class RL(Policy):
         # Unroll over the sequence dimension
         windows = x.unfold(1, degree, 1)
         # Multiply elements within each window and sum the products
-        return windows.prod(dim=-1)
+        return windows.prod(dim=-1).sum(-1)
