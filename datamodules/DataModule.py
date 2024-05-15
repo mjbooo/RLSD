@@ -43,10 +43,11 @@ class DataModule:
                 test=Dataset(dataset['test']._data[:10]),
             )
         elif self._config['simple_setup']:
+            n = int(self._config['num_simple'])
             return dict(
-                train=Dataset(dataset['train']._data[:1000]),
-                valid=Dataset(dataset['validation']._data[:100]),
-                test=Dataset(dataset['test']._data[:100]),
+                train=Dataset(dataset['train']._data[:n]),
+                valid=Dataset(dataset['validation']._data[:n//10]),
+                test=Dataset(dataset['test']._data[:n//10]),
             )
         else:
             return dict(

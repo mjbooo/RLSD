@@ -64,10 +64,14 @@ class Trainer(object):
         # DataModule
         self.datamodule = get_data_module(_config['data_gen'])(_config, self.sd)
 
+
         # # Save/load, logging
         self.counter = Metric(_config, self.datamodule)
         self.output_dir = _config['output_dir']
         self.debug = _config['debug']
+        
+        # Optimizer, lr_scheduler
+        self.optimizer, self.lr_scheduler = self.get_optimizers()
 
         if not self.debug:
             wandb.init(
@@ -81,7 +85,6 @@ class Trainer(object):
     def train(self):
         # get train dataloader with new response
         train_dataloader = self.datamodule.get_dataloader("train")
-        self.optimizer, self.lr_scheduler = self.get_optimizers()
 
         if self._config['initial_valid']:
             self.validate() # Sanity check: validation at the starting point
@@ -162,7 +165,7 @@ class Trainer(object):
             wandb.log(self.counter.get_log("train"))
     
     def get_optimizers(self):
-        # Todo: Optimizer: Warm-up, cool-down schdule
+        # Todo: Resume training step: input resume training steps to lr_scheduler
         
         if self._config['optimizer'] == "adamw":
             optimizer = torch.optim.AdamW(self.drf_model.parameters(), lr=self._config['lr'], weight_decay=0)
@@ -198,6 +201,9 @@ class Trainer(object):
         logging.info(f"[Saving the drf_model to {save_dir} ...")
 
         _save(
-            model=self.sd.drf_model, 
+            model=self.sd.drf_model,
+            optimizer=self.optimizer,
+            lr_scheduler=self.lr_scheduler,
+            metric=self.counter,
             save_dir=save_dir,
             config=self._config,)

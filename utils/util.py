@@ -49,11 +49,22 @@ def get_task_prompt(name_obj: str):
     task_name = get_task_name(name_obj)
     return map_prompt[task_name]
 
-def _save(model, save_dir, config):
+def _save(model, optimizer, lr_scheduler, metric, save_dir, config):
+    # Todo: optimzier state, scheduler state 
     os.makedirs(save_dir, exist_ok=True)
     state_dict = model.state_dict()
+    
+    # save model
     model.save_pretrained(save_dir, state_dict=state_dict, safe_serialization=True)
-    model.save_pretrained(save_dir)
+    
+    # save optimizer, scheduler
+    torch.save({
+        'metric_state_dict': metric.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': lr_scheduler.state_dict()
+    }, os.path.join(save_dir, "optimizers.pt"))
+    
+    # save expt config
     with open(os.path.join(save_dir, 'config_sacred.yaml'), 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
 

@@ -61,3 +61,11 @@ class Metric:
         if target_step < 1:
             return math.ceil(self.train_step_per_epoch * target_step)
         return target_step
+    
+    def state_dict(self):
+        return {
+            'cum_train_step': self.cum_train_step,
+            'total_train_step': self.total_train_step,
+            'train_step_per_epoch': self.train_step_per_epoch,
+            'n_epochs': self.n_epochs,
+        }
