@@ -157,7 +157,6 @@ class RL(Policy):
         """
         No start token in input
         """
-        metrics = {}
         metric_tensor = {}
         
         # exact reward / acceptance_rate_alpha
@@ -168,12 +167,7 @@ class RL(Policy):
             metric_tensor[k] = v.to('cpu').detach()
 
         # gather metrics
-        metrics['num_token_drf'] = metric_tensor['num_token_drf'].float().mean().item()
-        for _m in self.custom_metrics:
-            # get metric itself and in ratio
-            metrics[_m] = metric_tensor[_m].mean().item()
-            if not 'ratio' in _m:
-                metrics[_m + '_ratio'] = (metric_tensor[_m] / metrics['num_token_drf']).mean().item()
+        metrics = self.gather_metrics(metric_tensor)
 
         return metrics
     

@@ -49,13 +49,15 @@ def config():
     num_simple = 1000 # number of samples in train set for simple setup
     tiny_data = False # use small data for debugging
     initial_valid = True # disable validation for step=0
+    no_valid_until = None # disable validation until the epoch
 
     # load
     ckpt_dir = None # load checkpoint model
     resume_training_steps = None # the number of steps numberwhich you resume training from.
 
     # Logging config
-    custom_metrics = ['exact_reward', 'acceptance_ratio_alpha']
+    gammas = [3, 5, 7] # "gamma for first block efficiency"
+    custom_metrics = ['exact_reward', 'acceptance_ratio_alpha', 'first_block_efficiency']
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
     valid_steps = 0.5 # if the value <1, then it works as a ratio for a single epoch
     wandb_project_name = "RLSD" # wandb project name

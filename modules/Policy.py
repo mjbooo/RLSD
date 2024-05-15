@@ -77,8 +77,41 @@ class Policy(object):
         map_reward['acceptance_ratio'] = acceptance_ratio
         map_reward['acceptance_ratio_alpha'] = (acceptance_ratio.cpu().detach().sum(-1)/ map_reward['num_token_drf']).mean()
 
-        # 3. exact_reward
-        exact_reward = torch.cumprod(acceptance_ratio, dim=1).sum(dim=1)
+        # 3. first block efficiency (gamma = 5)
+        _cumprod = torch.cumprod(acceptance_ratio, dim=-1)
+        
+        # exact
+        gammas = self._config['gammas']
+        exact_reward_first_chunk = _cumprod[..., :max(gammas)].cpu().detach().cumsum(-1)
+        # random
+        acceptance_ratio_first_chunk = acceptance_ratio[..., :max(gammas)].cpu().detach()
+        is_accepted = torch.rand_like(acceptance_ratio_first_chunk) < acceptance_ratio_first_chunk
+        random_reward_first_chunk = ((~is_accepted).cumsum(dim=-1) < 1).cumsum(-1)  # this is `n` in algorithm 1
+
+        for g in gammas:
+            # added 1 token from the target model
+            map_reward[f'first_block_efficiency_{g}_exact'] = exact_reward_first_chunk[..., g-1].mean() + 1
+            map_reward[f'first_block_efficiency_{g}_random'] = random_reward_first_chunk[..., g-1].float().mean() + 1
+
+        # 4. exact_reward
+        exact_reward = _cumprod.sum(dim=-1)
         map_reward['exact_reward'] = exact_reward
 
         return map_reward
+
+    def gather_metrics(self, metric_tensor: Dict[str, torch.Tensor]):
+        metrics = {}
+        metrics['num_token_drf'] = metric_tensor['num_token_drf'].float().mean().item()
+        for _m in self.custom_metrics:
+            # get metric itself and in ratio
+            if _m == 'first_block_efficiency':
+                for g in self._config['gammas']:
+                    metrics[f'{_m}_{g}_exact'] = metric_tensor[f'{_m}_{g}_exact'].mean().item()
+                    metrics[f'{_m}_{g}_random'] = metric_tensor[f'{_m}_{g}_random'].mean().item()
+                continue
+
+            metrics[_m] = metric_tensor[_m].mean().item()
+            if not 'ratio' in _m:
+                metrics[_m + '_ratio'] = (metric_tensor[_m] / metrics['num_token_drf']).mean().item()
+        
+        return metrics
