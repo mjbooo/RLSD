@@ -23,7 +23,7 @@ class OnPolicyDataModule(DataModule):
         super().__init__(_config, sd)
         # max_training_steps overrides n_epochs
         if _config['max_training_steps']:
-            self.n_epochs = math.ceil(_config['max_training_steps']/len(self.datasets['train']))
+            self.n_epochs = math.ceil(_config['max_training_steps']/self.len_dataloaders['train'])
         else:
             self.n_epochs = _config['n_epochs']
     
