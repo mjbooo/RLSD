@@ -15,6 +15,7 @@ def config():
     # policy: DS, RL
     policy = "DistillSpec"
     improved_reward = False
+    truncation_deg = None
 
     # data generation
     data_gen = "batch" # "data generation method" 
@@ -44,6 +45,7 @@ def config():
     max_training_steps = None # "The number of total training steps". This will over ride the n_epochs
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
+    simple_setup = False # use simple setup for massive experiments
     tiny_data = False # use small data for debugging
     ckpt_load = None # load checkpoint model
     initial_valid = True # disable validation for step=0
@@ -81,6 +83,12 @@ def config():
     output_dir = f"{root}/data/ImprovedSD/checkpoint/{ckpt_save}"
 
     
+@ex.named_config
+def Simple():
+    num_valid_tiny = 10
+    simple_setup = True
+    max_training_steps = 2000
+
 # Policy
 @ex.named_config
 def DS():
@@ -114,6 +122,18 @@ def Improved_RL():
     wandb_project_name = "240513DistillSpec"
     
     max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
+@ex.named_config
+def Truncated_RL():
+    policy = "RL"
+    truncation_deg = 3
+    
+    wandb_project_name = "240513_Truncation"
+
     batch_train=32
     optimizer = "adafactor"
     lr = 3e-4
