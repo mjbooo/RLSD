@@ -69,3 +69,8 @@ class Metric:
             'train_step_per_epoch': self.train_step_per_epoch,
             'n_epochs': self.n_epochs,
         }
+    def load_state_dict(self, state_dict):
+        self.cum_train_step = state_dict['cum_train_step']
+        self.total_train_step = state_dict['total_train_step']
+        self.train_step_per_epoch = state_dict['train_step_per_epoch']
+        self.n_epochs = state_dict['n_epochs']

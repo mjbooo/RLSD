@@ -66,7 +66,7 @@ class Trainer(object):
 
 
         # # Save/load, logging
-        self.counter = Metric(_config, self.datamodule)
+        self.counter = self.get_metric()
         self.output_dir = _config['output_dir']
         self.debug = _config['debug']
         
@@ -164,6 +164,16 @@ class Trainer(object):
         if not self.debug:
             wandb.log(self.counter.get_log("train"))
     
+    def get_metric(self):
+        metric = Metric(self._config, self.datamodule)
+        
+        if self._config['ckpt_dir']:
+            metric_path = os.path.join(self._config['ckpt_dir'], "metric.pt")
+            metric_pt = torch.load(metric_path)
+            metric.load_state_dict(metric_pt)
+        
+        return metric
+
     def get_optimizers(self):
         # Todo: Resume training step: input resume training steps to lr_scheduler
         
