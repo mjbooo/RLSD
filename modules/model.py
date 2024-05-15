@@ -8,11 +8,11 @@ def load_models(_config):
 	models = []
 	for role in ['drf', 'tgt']:
 		model_name = _config[role]
-		if _config['ckpt_load'] is None:
+		if _config['ckpt_dir'] is None:
 			local_path = f"{_config['root']}/data/ImprovedSD/checkpoint/opensource/{model_name}"
 		else:
-			logging.info(f"Load selected checkpoint model from {_config['ckpt_load']}...")
-			local_path = _config['ckpt_load']
+			logging.info(f"Load selected model checkpoint from {_config['ckpt_dir']}...")
+			local_path = f"{_config['ckpt_dir']}/{model_name}"
 		
 		if not os.path.exists(local_path):
 			logging.info(f"No model found in local_path! Download & Save {model_name}...")

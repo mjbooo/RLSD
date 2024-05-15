@@ -88,8 +88,9 @@ class Trainer(object):
 
         if self._config['initial_valid']:
             self.validate() # Sanity check: validation at the starting point
-        for epoch in range(self.datamodule.n_epochs):
-            for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch + 1}, Steps {self.counter.cum_train_step}"):
+
+        for epoch in range(self.counter.get_cum_epoch(), self.datamodule.n_epochs):
+            for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch}, Steps {self.counter.cum_train_step}"):
                 self.drf_model.train()
                 self.optimizer.zero_grad(set_to_none=True)
                 loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split="train")
@@ -108,6 +109,7 @@ class Trainer(object):
                 
                 if self.counter.is_last_step():
                     return
+            self.save_model(epoch=epoch)
 
     @torch.no_grad()
     def measure_block_efficiency(self, split: Literal["valid_tiny", "test"]):
@@ -168,6 +170,8 @@ class Trainer(object):
         metric = Metric(self._config, self.datamodule)
         
         if self._config['ckpt_dir']:
+            logging.info(f"Load selected metric info from {self._config['ckpt_dir']}...")
+
             metric_path = os.path.join(self._config['ckpt_dir'], "metric.pt")
             metric_pt = torch.load(metric_path)
             metric.load_state_dict(metric_pt)
@@ -175,8 +179,6 @@ class Trainer(object):
         return metric
 
     def get_optimizers(self):
-        # Todo: Resume training step: input resume training steps to lr_scheduler
-        
         if self._config['optimizer'] == "adamw":
             optimizer = torch.optim.AdamW(self.drf_model.parameters(), lr=self._config['lr'], weight_decay=0)
         elif self._config['optimizer'] == "adafactor":
@@ -201,13 +203,22 @@ class Trainer(object):
             lr_scheduler = LambdaLR(optimizer, lr_lambda)
         else:
             raise ValueError(f"Invalid lr_scheduler: {self._config['lr_scheduler']}")
+
+        if self._config['ckpt_dir']:
+            logging.info(f"Load selected optimizer and lr_scheduler checkpoint from {self._config['ckpt_dir']}...")
+
+            optimizers_path = os.path.join(self._config['ckpt_dir'], "optimizers.pt")
+            optimizers_pt = torch.load(optimizers_path)
+            optimizer.load_state_dict(optimizers_pt['optimizer_state_dict'])
+            lr_scheduler.load_state_dict(optimizers_pt['scheduler_state_dict'])
+
         return optimizer, lr_scheduler
     
-    def save_model(self):
+    def save_model(self, epoch=None):
         """
         Save the drf_model for iteration
         """
-        save_dir = self.output_dir
+        save_dir = self.output_dir if epoch is None else os.path.join(self.output_dir, f"epoch-{epoch}")
         logging.info(f"[Saving the drf_model to {save_dir} ...")
 
         _save(
@@ -216,4 +227,5 @@ class Trainer(object):
             lr_scheduler=self.lr_scheduler,
             metric=self.counter,
             save_dir=save_dir,
-            config=self._config,)
+            config=self._config,
+            )

@@ -64,9 +64,7 @@ def _save(model, optimizer, lr_scheduler, metric, save_dir, config):
     }, os.path.join(save_dir, "optimizers.pt"))
     
     # save metric
-    torch.save({
-        'metric_state_dict': metric.state_dict(),
-    }, os.path.join(save_dir, "metric.pt"))
+    torch.save(metric.state_dict(), os.path.join(save_dir, "metric.pt"))
     
     # save expt config
     with open(os.path.join(save_dir, 'config_sacred.yaml'), 'w') as outfile:

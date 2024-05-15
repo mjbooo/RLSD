@@ -46,9 +46,13 @@ def config():
     eval = False # "enable eval mode"
     debug = False # enable debug mode (no wandb logging)
     simple_setup = False # use simple setup for massive experiments
+    num_simple = 1000 # number of samples in train set for simple setup
     tiny_data = False # use small data for debugging
-    ckpt_load = None # load checkpoint model
     initial_valid = True # disable validation for step=0
+
+    # load
+    ckpt_dir = None # load checkpoint model
+    resume_training_steps = None # the number of steps numberwhich you resume training from.
 
     # Logging config
     custom_metrics = ['exact_reward', 'acceptance_ratio_alpha']
@@ -79,6 +83,8 @@ def config():
         f"lr-{lr}",
         seed,
     ]
+    if tiny_data:
+        factors.append('tiny_data')
     ckpt_save = "_".join(map(str, factors))
     output_dir = f"{root}/data/ImprovedSD/checkpoint/{ckpt_save}"
 
