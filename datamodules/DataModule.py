@@ -35,18 +35,23 @@ class DataModule:
 
     def load_dataset(self):
         dataset = load_from_disk(f"./datamodules/dataset/{self.dataset_name}")
+        
         if self._config['tiny_data']:
             return dict(
                 train=Dataset(dataset['train']._data[:20]),
                 valid=Dataset(dataset['validation']._data[:5]),
-                valid_tiny=Dataset(dataset['validation']._data[:5]),
                 test=Dataset(dataset['test']._data[:10]),
+            )
+        elif self._config['simple_setup']:
+            return dict(
+                train=Dataset(dataset['train']._data[:1000]),
+                valid=Dataset(dataset['validation']._data[:100]),
+                test=Dataset(dataset['test']._data[:100]),
             )
         else:
             return dict(
                 train=dataset['train'],
                 valid=dataset['validation'],
-                valid_tiny=Dataset(dataset['validation']._data[:50]),
                 test=dataset['test'],
             )
 
