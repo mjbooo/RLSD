@@ -1,4 +1,4 @@
-import os, random
+import os, random, sys
 from absl import app
 from absl import flags
 from datasets import load_dataset, load_from_disk, Dataset, DatasetDict
@@ -10,7 +10,12 @@ import torch.multiprocessing as mp
 import numpy as np
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
+
 from DataLoader import PromptIterator
+# add import path 
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from utils.util import get_task_prompt
+from main import set_seed
 
 
 
@@ -22,7 +27,7 @@ flags.DEFINE_boolean("tgt_response", False, "get draft from the target model")
 flags.DEFINE_string("tgt", "google/t5-xl-lm-adapt", "target model")
 flags.DEFINE_integer("max_prompt_length", 1024, "max prompt length")
 flags.DEFINE_integer("max_target_length", 64, "max target length")
-flags.DEFINE_integer("batch_size", 32, "batch size")
+flags.DEFINE_integer("batch_size", 48, "batch size")
 
 flags.DEFINE_integer("seed", 2024, "seed")
 flags.DEFINE_boolean("tiny_data", False, "for debugging")
@@ -32,16 +37,6 @@ map_to_prompt = {
 'cnn_dailymail': 'article',
 'wmt/wmt14': 'en',
 }
-
-def set_seed(seed):
-	mp.set_sharing_strategy('file_system')
-	random.seed(seed)
-	np.random.seed(seed)
-	torch.manual_seed(seed)
-	torch.cuda.manual_seed(seed)
-	torch.cuda.manual_seed_all(seed)
-	torch.backends.cudnn.deterministic = True
-	torch.backends.cudnn.benchmark = False    
 
 @torch.no_grad()
 def main(argv):
@@ -85,8 +80,8 @@ def main(argv):
 
         tgt_model = AutoModelForSeq2SeqLM.from_pretrained(local_path).to('cuda').eval()
         tgt_tokenizer = AutoTokenizer.from_pretrained(FLAGS.tgt)
+        task_prompt = get_task_prompt(dataset_name)
         
-        map_dataset = dict()        
         for split in ['train', 'valid', 'test']:
             data_loader = PromptIterator(
                 datasets[split],
@@ -97,7 +92,7 @@ def main(argv):
             decoded_samples = []
             for batch in data_loader:
                 inputs_prompts = tgt_tokenizer(
-                    batch['prompt'], 
+                    [task_prompt + p for p in batch['prompt']],
                     max_length=FLAGS.max_prompt_length, 
                     return_tensors="pt",
                     padding=True, 
@@ -126,7 +121,8 @@ python3 datamodules/preprocess.py --dataset=cnn_dailymail --option=3.0.0
 python3 datamodules/preprocess.py --dataset=xsum
 python3 datamodules/preprocess.py --dataset=wmt/wmt14 --option='de-en'
 
-CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024
-CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2023
+# tgt_response
+CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024 ;\
+CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2023 ;\
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2022
 """
