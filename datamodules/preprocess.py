@@ -9,6 +9,7 @@ import torch.utils.data
 import torch.multiprocessing as mp
 import numpy as np
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from accelerate.utils import tqdm
 
 
 from DataLoader import PromptIterator
@@ -90,7 +91,7 @@ def main(argv):
                 )
 
             decoded_samples = []
-            for batch in data_loader:
+            for batch in tqdm(iterable=data_loader, desc=f"Generating {split} samples"):
                 inputs_prompts = tgt_tokenizer(
                     [task_prompt + p for p in batch['prompt']],
                     max_length=FLAGS.max_prompt_length, 
