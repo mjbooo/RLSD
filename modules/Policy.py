@@ -75,18 +75,17 @@ class Policy(object):
             p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
 
             probability_ratio_labels = p_tgt_labels / q_drf_labels
-            probability_ratio_labels[mask] = 0 # Don't count the padding tokens for the exact reward
+            probability_ratio_labels[mask] = 1e-6 # Don't count the padding tokens for the exact reward
             acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
 
             # 3. get weighted reward
-            # logarithm
-            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
             _p_tgt_labels_history_log = F.pad(p_tgt_labels[..., :-1].log().cumsum(-1), (1, 0), value=1)
             _p_tgt_labels_history_log[mask] = - float('inf')
             p_tgt_labels_history = _p_tgt_labels_history_log.softmax(-1) # (B, S)
 
-            acceptance_ratio_history[mask] = 0
-            mat = acceptance_ratio_history.log()[..., None, :] - acceptance_ratio_history.log()[..., None]
+            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].log().cumsum(-1), (1, 0), value=1) # (B, S)
+            acceptance_ratio_history[mask] = 1e-6 # epsilon for log
+            mat = acceptance_ratio_history[..., None, :] - acceptance_ratio_history[..., None]
             mask_triu = torch.triu(torch.ones_like(mat, dtype=torch.bool))
             mat[~mask_triu] = - float('inf')
             mat[mask] = - float('inf')
@@ -108,7 +107,6 @@ class Policy(object):
             min_p_q = torch.min(p_tgt_probs, q_drf_probs)
 
             # Don't count the padding tokens for the exact reward
-            # mask = mask.to(probability_ratio.device)
             min_p_q[mask] = 0
             acceptance_ratio = min_p_q.sum(-1)
         else:
