@@ -20,6 +20,10 @@ def config():
     # data generation
     data_gen = "batch" # "data generation method" 
     
+    # RL
+    full_logit = False
+    weighted_logit = False
+    
     # DistillSpec
     divergence = "kl" # "divergence for distillation" Literal["kl", "tvd"]
 
@@ -70,7 +74,10 @@ def config():
             prefix += "Improved-"
         if truncation_deg:
             prefix += f"Trun-{truncation_deg}-"
-
+        if full_logit:
+            prefix += "full-"
+        if weighted_logit:
+            prefix += "weighted-"
         model_ckpt = prefix + policy
     elif 'DistillSpec' in policy:
         model_ckpt = f"{policy}-{divergence}"
@@ -147,6 +154,30 @@ def Truncated_RL():
     lr = 3e-4
     lr_scheduler = "linear_warmup_cosine_decay"
 
+@ex.named_config
+def full_RL():
+    policy = "RL"
+    full_logit = True
+    
+    wandb_project_name = "240513DistillSpec"
+
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
+@ex.named_config
+def Weighted_RL():
+    policy = "RL"
+    weighted_logit = True
+    
+    wandb_project_name = "240513DistillSpec"
+
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
 # Dataset
 @ex.named_config
 def Xsum():
@@ -180,3 +211,6 @@ def Debug():
     debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
     initial_valid = False # disable validation for step=0
+    max_training_steps=5
+    max_target_length=64
+    batch_train=2

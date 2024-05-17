@@ -11,7 +11,6 @@ from einops import rearrange
 from datasets import Dataset
 from transformers import PreTrainedModel
 from accelerate.utils import tqdm
-
 from modules.Policy import Policy
 from utils.util import disable_dropout_in_model
 
@@ -129,7 +128,9 @@ class RL(Policy):
         """
         # loss = - exact reward
         reward_map = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
-        exact_reward = reward_map['exact_reward'] # (B, )
+        
+        _key_loss = 'exact_reward_mean' if self._config['weighted_logit'] else 'exact_reward_labels'
+        exact_reward = reward_map[_key_loss] # (B, )
 
         if self._config['truncation_deg']:
             trunc_reward = self.truncate_exact_reward(reward_map['acceptance_ratio'], self._config['truncation_deg'])
