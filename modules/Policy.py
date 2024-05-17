@@ -123,7 +123,12 @@ class Policy(object):
             probability_ratio[mask] = 0
             
             # 2. acceptance_rate_alpha
-            acceptance_ratio = torch.min(probability_ratio, torch.tensor(1))
+            acceptance_ratio_labels = torch.min(probability_ratio, torch.tensor(1))
+
+            # 3. acceptance_ratio_mean
+            min_p_q = torch.min(p_tgt, q_drf)
+            min_p_q[mask] = 0 # Don't count the padding tokens for the exact reward
+            acceptance_ratio_mean = min_p_q.sum(-1).cpu().detach()
 
         # map_reward['acceptance_ratio'] = acceptance_ratio
         map_reward['acceptance_ratio_mean'] = acceptance_ratio_mean
