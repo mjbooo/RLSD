@@ -171,11 +171,12 @@ class Trainer(object):
     
     def get_gradient_norm(self):
         cum_grad_norm = 0
-        for i, (_, parameter) in enumerate(self.drf_model.named_parameters()):
+        for _, parameter in self.drf_model.named_parameters():
             if parameter.grad is not None:
-                cum_grad_norm += parameter.grad.norm(2).item()        
+                cum_grad_norm += parameter.grad.detach().norm().item()**2
+        cum_grad_norm = cum_grad_norm**0.5
         
-        return cum_grad_norm / (i+1)
+        return cum_grad_norm
     
     def get_metric(self):
         metric = Metric(self._config, self.datamodule)
