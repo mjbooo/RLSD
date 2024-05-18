@@ -89,15 +89,15 @@ class Policy(object):
             mask_triu = torch.triu(torch.ones_like(mat, dtype=torch.bool))
             mat[~mask_triu] = - float('inf')
             mat[mask] = - float('inf')
-            mat = mat.exp()
+            mat_exp = mat.exp()
 
             weighted_reward = (
-                                mat # B, S, S
-                                * acceptance_ratio_mean[..., None, :] # B, 1, S
-                                * p_tgt_labels_history[..., None] # B, S, 1 
+                                mat_exp # B, S, S
+                                * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
+                                * p_tgt_labels_history[..., None].clone() # B, S, 1 
                             ).sum(dim=(1, 2))
 
-            assert mat.isnan().sum().item() == 0
+            assert mat_exp.isnan().sum().item() == 0
         
         elif self._config['full_logit']:
             # use expectation over full vocab: (B, S, V)
@@ -130,7 +130,7 @@ class Policy(object):
             min_p_q[mask] = 0 # Don't count the padding tokens for the exact reward
             acceptance_ratio_mean = min_p_q.sum(-1).cpu().detach()
 
-        # map_reward['acceptance_ratio'] = acceptance_ratio
+        acceptance_ratio_mean[mask] = 0
         map_reward['acceptance_ratio_mean'] = acceptance_ratio_mean
         map_reward['acceptance_ratio_alpha_mean'] = (acceptance_ratio_mean.cpu().detach().sum(-1)/ map_reward['num_token_drf']).mean()
         map_reward['acceptance_ratio_labels'] = acceptance_ratio_labels
@@ -151,6 +151,7 @@ class Policy(object):
 
             for g in gammas:
                 # added 1 token from the target model
+                # Todo: <Important> _expectation 반영해야함
                 map_reward[f'first_block_efficiency_{g}_exact'] = exact_reward_first_chunk[..., g-1].mean() + 1
                 map_reward[f'first_block_efficiency_{g}_random'] = random_reward_first_chunk[..., g-1].float().mean() + 1
 
