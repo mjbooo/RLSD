@@ -95,8 +95,8 @@ class Trainer(object):
                 self.optimizer.zero_grad(set_to_none=True)
                 loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split="train")
                 loss.backward()
+                metrics['grad_norm'] = self.get_gradient_norm()
                 self.optimizer.step()
-                
                 self.counter(loss, metrics, self.optimizer, split="train")
                 
                 if self.counter.is_logging():
@@ -165,6 +165,13 @@ class Trainer(object):
     def log(self):
         if not self.debug:
             wandb.log(self.counter.get_log("train"))
+    
+    def get_gradient_norm(self):
+        cum_grad_norm = 0
+        for i, (_, parameter) in enumerate(self.drf_model.named_parameters()):
+            if parameter.grad is not None:
+                cum_grad_norm += parameter.grad.norm(2).item()
+        return cum_grad_norm / (i+1)
     
     def get_metric(self):
         metric = Metric(self._config, self.datamodule)
