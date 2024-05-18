@@ -17,10 +17,12 @@ class Metric:
         self.total_train_step = _config['max_training_steps'] if _config['max_training_steps'] else self.n_epochs * self.train_step_per_epoch
         self.logging_interval = self._get_interval(self._config['logging_steps'])
         self.valid_interval = self._get_interval(self._config['valid_steps'])
+        self.valid_tiny_interval = self._get_interval(self._config['valid_tiny_steps'])
         self.no_valid_until = self._config['no_valid_until']
         
-    def __call__(self, mean_loss, metrics: Dict[str, float], optimizer=None, split: Literal["train", "eval", "test"] = "train") -> None:
-        self.cum_metrics[split]["loss"].append(mean_loss.detach().item())
+    def __call__(self, mean_loss=None, metrics: Dict[str, float]=None, optimizer=None, split: Literal["train", "eval", "test"] = "train") -> None:
+        if mean_loss is not None:
+            self.cum_metrics[split]["loss"].append(mean_loss.detach().item())
 
         for key, value in metrics.items():
             self.cum_metrics[split][key].append(value)
@@ -43,6 +45,12 @@ class Metric:
     def is_valid(self) -> bool:
         is_predefined_no_valid = self.get_cum_epoch() >= self.no_valid_until
         is_count = self.cum_train_step % self.valid_interval == 0
+        
+        return is_count and is_predefined_no_valid
+    
+    def is_valid_tiny(self) -> bool:
+        is_predefined_no_valid = self.get_cum_epoch() >= self.no_valid_until
+        is_count = self.cum_train_step % self.valid_tiny_interval == 0
         
         return is_count and is_predefined_no_valid
 

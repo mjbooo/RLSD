@@ -27,17 +27,18 @@ class OnPolicyDataModule(DataModule):
         else:
             self.n_epochs = _config['n_epochs']
     
-    def get_dataloader(self, split) -> DataLoader:
+    def get_dataloader(self, split, is_block_efficiency=False) -> DataLoader:
         shuffle = True if split == 'train' else False
         
         if split != 'valid_tiny':
             dataset_text = self.datasets[split]
         else:
             # sampling subset from valid set
-            n = self._config['num_valid_tiny'] if not self._config['tiny_data'] else 3
+            n = min(len(self.datasets['valid']), self._config['num_valid_tiny']) if not self._config['tiny_data'] else 3
             random_ids = random.sample(range(len(self.datasets['valid'])), n)
             dataset_text = self.datasets['valid'].select(random_ids)
-        batch_size = 1 if split in ['valid_tiny', 'test'] else self._config['batch_train']
+        
+        batch_size = 1 if is_block_efficiency else self._config['batch_train']
 
 
         kwargs_dataloader = dict(

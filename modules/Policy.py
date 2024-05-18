@@ -209,11 +209,6 @@ class Policy(object):
         # offload to cpu
         for k, v in metric_tensor.items():
             metric_tensor[k] = v.to('cpu').detach()
-
-        # # gradient norm
-        # if split == 'train':
-        #     metric_tensor['gradient_norm'] = self.get_gradient_norm()
-        
         # gather metrics
         metrics = self.gather_metrics(metric_tensor)
 

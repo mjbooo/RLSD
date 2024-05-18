@@ -103,6 +103,8 @@ class Trainer(object):
                     self.log()
                 if self.counter.is_valid():
                     self.validate()
+                if self.counter.is_valid_tiny():
+                    self.validate_tiny()
                 
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
@@ -112,36 +114,27 @@ class Trainer(object):
             self.save_model(epoch=epoch)
 
     @torch.no_grad()
-    def measure_block_efficiency(self, split: Literal["valid_tiny", "test"]):
-        # Todo: AR for tiny valid data
-        tiny_valid_dataloader = self.datamodule.get_dataloader(split)
-        self.sd.tgt_model.to(self.sd.drf_model.device).eval()
-        for batch in tqdm(iterable=tiny_valid_dataloader, desc=f"[{split}: "):
-            del batch['logits']
-            # chunk length = 5 by default
-            decoded_sample, sd_metrics = self.sd.tgt_model.generate(
-                                    **batch,
-                                    max_new_tokens=self._config['max_target_length'],
-                                    do_sample=True,
-                                    assistant_model=self.sd.drf_model,
-                                )
-            
-            # decode_sample = 1 (start token) + cum_n_matches + num_itr
-            metrics = {
-                'block_efficiency_ratio': 1 + sd_metrics['cum_n_matches'] / sd_metrics['num_itr'],
-                'gamma': sd_metrics['gamma'],
-                'match_first': sd_metrics['cum_n_matches'],
-                'match_first_ratio': sd_metrics['cum_n_matches'] / (sd_metrics['num_itr']*sd_metrics['gamma']),
-                }
+    def measure_block_efficiency(self, batch: Dict[str, Any]):
+        del batch['logits']
 
-            self.counter(torch.tensor([-100]), metrics, split=split)
+        # chunk length = 5 by default
+        decoded_sample, sd_metrics = self.sd.tgt_model.generate(
+                                **batch,
+                                max_new_tokens=self._config['max_target_length'],
+                                do_sample=True,
+                                assistant_model=self.sd.drf_model,
+                            )
+        metrics = {
+                    'block_efficiency_ratio': 1 + sd_metrics['cum_n_matches'] / sd_metrics['num_itr'],
+                    'gamma': sd_metrics['gamma'],
+                    'match_first': sd_metrics['cum_n_matches'],
+                    'match_first_ratio': sd_metrics['cum_n_matches'] / (sd_metrics['num_itr']*sd_metrics['gamma']),
+                }
         
-        if not self.debug:
-            wandb.log(self.counter.get_log(split))
-        self.sd.tgt_model.to('cpu').eval()
+        return metrics
     
     @torch.no_grad()
-    def inference(self, split: Literal["valid", "test"]):
+    def inference(self, split: Literal["valid", "valid_tiny", "test"]):
         eval_dataloader = self.datamodule.get_dataloader(split)
 
         self.drf_model.eval()
@@ -149,14 +142,24 @@ class Trainer(object):
             loss, metrics = self.policy.get_batch_loss_metrics(self.drf_model, batch, split=split)
             self.counter(loss, metrics, split=split)
         
-        split_tiny = "valid_tiny" if split == "valid" else "test"
-        self.measure_block_efficiency(split_tiny)
+        if split in ["valid_tiny", "test"]:
+            # load batch 1 dataloaer
+            eval_dataloader_batch_1 = self.datamodule.get_dataloader(split, is_block_efficiency=True)
+
+            self.sd.tgt_model.to(self.sd.drf_model.device).eval()
+            for batch in tqdm(iterable=eval_dataloader_batch_1, desc=f"[{split}: Multi-chunk block efficiency]"):
+                metrics = self.measure_block_efficiency(batch)
+                self.counter(metrics=metrics, split=split)
+            self.sd.tgt_model.to('cpu').eval()
 
         if not self.debug:
             wandb.log(self.counter.get_log(split))
 
     def validate(self):
         self.inference("valid")
+    
+    def validate_tiny(self):
+        self.inference("valid_tiny")
 
     def test(self):
         self.inference("test")
@@ -170,7 +173,8 @@ class Trainer(object):
         cum_grad_norm = 0
         for i, (_, parameter) in enumerate(self.drf_model.named_parameters()):
             if parameter.grad is not None:
-                cum_grad_norm += parameter.grad.norm(2).item()
+                cum_grad_norm += parameter.grad.norm(2).item()        
+        
         return cum_grad_norm / (i+1)
     
     def get_metric(self):

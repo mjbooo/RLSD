@@ -44,7 +44,6 @@ def config():
     # Training config
     device = 0
     dataset = "xsum" # "choosing dataset") # Todo: Dataset pvc, ckpt pvc
-    num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
     batch_train = 2 # "batch size"
     n_epochs = 3 # "The number of total epochs"
     max_training_steps = None # "The number of total training steps". This will over ride the n_epochs
@@ -65,6 +64,8 @@ def config():
     custom_metrics = ['exact_reward', 'acceptance_ratio_alpha', 'first_block_efficiency']
     logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
     valid_steps = 0.5 # if the value <1, then it works as a ratio for a single epoch
+    valid_tiny_steps = 0.1 # if the value <1, then it works as a ratio for a single epoch
+    num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
     wandb_project_name = "RLSD" # wandb project name
 
     # Path config
