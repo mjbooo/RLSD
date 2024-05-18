@@ -23,6 +23,7 @@ def config():
     # RL
     full_logit = False
     weighted_logit = False
+    mean_logit = False
     
     # DistillSpec
     divergence = "kl" # "divergence for distillation" Literal["kl", "tvd"]
@@ -181,12 +182,37 @@ def Weighted_RL():
     lr = 3e-4
     lr_scheduler = "linear_warmup_cosine_decay"
 
+@ex.named_config
+def mean_RL():
+    policy = "RL"
+    mean_logit = True
+    
+    wandb_project_name = "240513DistillSpec"
+
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
 # Dataset
 @ex.named_config
 def Xsum():
     dataset = "xsum"
     max_prompt_length=1024
     max_target_length=64
+
+@ex.named_config
+def Cnndm():
+    dataset = "cnn_dailymail"
+    max_prompt_length=2048
+    max_target_length=128
+
+@ex.named_config
+def Wmt():
+    dataset = "wmt14"
+    max_prompt_length=80
+    max_target_length=80
 
 # Debug
 @ex.named_config
