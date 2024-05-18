@@ -129,8 +129,7 @@ class RL(Policy):
         # loss = - exact reward
         reward_map = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
         
-        _key_loss = 'exact_reward_mean' if self._config['weighted_logit'] else 'exact_reward_labels'
-        exact_reward = reward_map[_key_loss] # (B, )
+        exact_reward = reward_map['exact_reward_for_loss'] # (B, )
 
         if self._config['truncation_deg']:
             trunc_reward = self.truncate_exact_reward(reward_map['acceptance_ratio'], self._config['truncation_deg'])

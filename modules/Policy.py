@@ -91,13 +91,39 @@ class Policy(object):
             mat[mask] = - float('inf')
             mat_exp = mat.exp()
 
-            weighted_reward = (
+            map_reward['exact_reward_for_loss'] = (
                                 mat_exp # B, S, S
                                 * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
                                 * p_tgt_labels_history[..., None].clone() # B, S, 1 
                             ).sum(dim=(1, 2))
 
             assert mat_exp.isnan().sum().item() == 0
+        
+        elif self._config['mean_logit']:
+            # use expectation, not weighted by p_tgt over full vocab: (B, S, V)
+            
+            # 1. acceptance_ratio_mean
+            min_p_q = torch.min(p_tgt, q_drf)
+            min_p_q[mask] = 0 # Don't count the padding tokens for the exact reward
+            acceptance_ratio_mean = min_p_q.sum(-1)
+
+            # 2. acceptance_ratio_labels
+            q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
+            p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
+
+            probability_ratio_labels = p_tgt_labels / q_drf_labels
+            probability_ratio_labels[mask] = 1e-6 # Don't count the padding tokens for the exact reward
+            acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
+
+            acceptance_ratio_history_log = F.pad(acceptance_ratio_labels[..., :-1].log().cumsum(-1), (1, 0), value=0) # (B, S)
+            acceptance_ratio_history_log[mask] = - float('inf') # 0 for exp
+            acceptance_ratio_history = acceptance_ratio_history_log.exp()
+   
+            map_reward['exact_reward_for_loss'] = (
+                                        acceptance_ratio_history.clone() # B, S
+                                        * acceptance_ratio_mean.clone() # B, S
+                                        ).sum(dim=-1)
+
         
         elif self._config['full_logit']:
             # use expectation over full vocab: (B, S, V)
@@ -151,14 +177,13 @@ class Policy(object):
 
             for g in gammas:
                 # added 1 token from the target model
-                # Todo: <Important> _expectation 반영해야함
-                map_reward[f'first_block_efficiency_{g}_exact'] = exact_reward_first_chunk[..., g-1].mean() + 1
-                map_reward[f'first_block_efficiency_{g}_random'] = random_reward_first_chunk[..., g-1].float().mean() + 1
+                map_reward[f'first_block_efficiency_{g}_exact_{_expectation}'] = exact_reward_first_chunk[..., g-1].mean() + 1
+                map_reward[f'first_block_efficiency_{g}_random_{_expectation}'] = random_reward_first_chunk[..., g-1].float().mean() + 1
 
             # 4. exact_reward
             if _expectation == 'mean':
-                if self._config['weighted_logit']:
-                    map_reward[f'exact_reward_{_expectation}'] = weighted_reward
+                if self._config['weighted_logit'] or self._config['mean_logit']:
+                    map_reward[f'exact_reward_{_expectation}'] = map_reward['exact_reward_for_loss'].cpu().detach()
             else: # labels
                 exact_reward = _cumprod.sum(dim=-1)
                 map_reward[f'exact_reward_{_expectation}'] = exact_reward
@@ -172,8 +197,9 @@ class Policy(object):
             # get metric itself and in ratio
             if _m == 'first_block_efficiency':
                 for g in self._config['gammas']:
-                    metrics[f'{_m}_{g}_exact'] = metric_tensor[f'{_m}_{g}_exact'].mean().item()
-                    metrics[f'{_m}_{g}_random'] = metric_tensor[f'{_m}_{g}_random'].mean().item()
+                    for _expectation in ['mean', 'labels']:
+                        metrics[f'{_m}_{g}_exact_{_expectation}'] = metric_tensor[f'{_m}_{g}_exact_{_expectation}'].mean().item()
+                        metrics[f'{_m}_{g}_random_{_expectation}'] = metric_tensor[f'{_m}_{g}_random_{_expectation}'].mean().item()
             elif _m == 'acceptance_ratio_alpha':
                 metrics['acceptance_ratio_alpha_mean'] = metric_tensor['acceptance_ratio_alpha_mean'].item()
                 metrics['acceptance_ratio_alpha_labels'] = metric_tensor['acceptance_ratio_alpha_labels'].item()

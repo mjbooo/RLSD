@@ -79,6 +79,8 @@ def config():
             prefix += "full-"
         if weighted_logit:
             prefix += "weighted-"
+        if mean_logit:
+            prefix += "mean-"
         model_ckpt = prefix + policy
     elif 'DistillSpec' in policy:
         model_ckpt = f"{policy}-{divergence}"
@@ -183,7 +185,7 @@ def Weighted_RL():
     lr_scheduler = "linear_warmup_cosine_decay"
 
 @ex.named_config
-def mean_RL():
+def Mean_RL():
     policy = "RL"
     mean_logit = True
     
@@ -236,10 +238,10 @@ def DS_debug():
 
 @ex.named_config
 def Debug():
-    tgt = "google/t5-small-lm-adapt" # target model
+    # tgt = "google/t5-small-lm-adapt" # target model
     debug = True # enable debug mode (no wandb logging)
     tiny_data = True # use small data for debugging
     initial_valid = False # disable validation for step=0
     max_training_steps=5
-    max_target_length=64
+    max_target_length=10
     batch_train=2
