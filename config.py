@@ -94,13 +94,15 @@ def config():
     ]
     if tiny_data:
         factors.append('tiny_data')
+    if simple_setup:
+        factors.append('simple_setup')
     ckpt_save = "_".join(map(str, factors))
     output_dir = f"{root}/data/ImprovedSD/checkpoint/{ckpt_save}"
 
     
 @ex.named_config
 def Simple():
-    num_valid_tiny = 10
+    num_valid_tiny = 100
     simple_setup = True
     max_training_steps = 2000
 
@@ -173,6 +175,7 @@ def Weighted_RL():
     
     wandb_project_name = "240513DistillSpec"
 
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
     batch_train=32
     optimizer = "adafactor"
     lr = 3e-4
