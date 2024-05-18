@@ -138,28 +138,3 @@ class DistillSpec(Policy):
             loss = criterion(q_drf_masked, p_tgt_masked)/2
 
         return loss
-    
-    @torch.no_grad
-    def get_metrics(
-        self,
-        q_drf: torch.FloatTensor,
-        p_tgt: torch.FloatTensor,
-        labels_drf: torch.LongTensor,
-        mask: torch.BoolTensor,
-    ) -> Dict[str, torch.FloatTensor]:
-        """
-        No start token in input
-        """
-        metric_tensor = {}
-        
-        # exact reward / acceptance_rate_alpha
-        metric_tensor = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
-
-        # offload to cpu
-        for k, v in metric_tensor.items():
-            metric_tensor[k] = v.to('cpu').detach()
-
-        # gather metrics
-        metrics = self.gather_metrics(metric_tensor)
-
-        return metrics

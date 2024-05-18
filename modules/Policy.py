@@ -45,7 +45,7 @@ class Policy(object):
         split: Literal["train", "valid", "test"] = "train",
     ):
         raise NotImplementedError
-
+    
     def get_exact_reward(
         self,
         q_drf: torch.FloatTensor,
@@ -97,7 +97,7 @@ class Policy(object):
                                 * p_tgt_labels_history[..., None].clone() # B, S, 1 
                             ).sum(dim=(1, 2))
 
-            assert mat_exp.isnan().sum().item() == 0
+            assert map_reward['exact_reward_for_loss'].isnan().sum().item() == 0
         
         elif self._config['mean_logit']:
             # use expectation, not weighted by p_tgt over full vocab: (B, S, V)
@@ -189,6 +189,37 @@ class Policy(object):
                 map_reward[f'exact_reward_{_expectation}'] = exact_reward
 
         return map_reward
+
+    @torch.no_grad
+    def get_metrics(
+        self,
+        q_drf: torch.FloatTensor,
+        p_tgt: torch.FloatTensor,
+        labels_drf: torch.LongTensor,
+        mask: torch.BoolTensor,
+    ) -> Dict[str, torch.FloatTensor]:
+        """
+        No start token in input
+        """
+        metric_tensor = {}
+        
+        # exact reward / acceptance_rate_alpha
+        metric_tensor = self.get_exact_reward(q_drf, p_tgt, labels_drf, mask)
+
+        # offload to cpu
+        for k, v in metric_tensor.items():
+            metric_tensor[k] = v.to('cpu').detach()
+
+        # # gradient norm
+        # if split == 'train':
+        #     metric_tensor['gradient_norm'] = self.get_gradient_norm()
+        
+        # gather metrics
+        metrics = self.gather_metrics(metric_tensor)
+
+        return metrics
+
+
 
     def gather_metrics(self, metric_tensor: Dict[str, torch.Tensor]):
         metrics = {}
