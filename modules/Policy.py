@@ -91,10 +91,12 @@ class Policy(object):
             is_acceptance_history_zero = acceptance_ratio_history == 0
             mask_zero = is_acceptance_history_zero[..., None, :] + is_acceptance_history_zero[..., None]
             mask_tril = torch.tril(torch.ones_like(mask_zero), diagonal=-1)
+            mask_diag = torch.eye(S, dtype=torch.bool)[None, ...].expand(B, -1, -1)
 
             acceptance_ratio_history[acceptance_ratio_history == 0] = eps
             mat = acceptance_ratio_history[..., None, :] * torch.reciprocal(acceptance_ratio_history)[..., None]
             mat[mask_zero+mask_tril] = 0
+            mat[mask_diag] = 1
 
             map_reward['exact_reward_for_loss'] = (
                                 mat # B, S, S
