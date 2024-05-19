@@ -75,12 +75,12 @@ class Policy(object):
             q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
             p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
 
-            probability_ratio_labels = p_tgt_labels / q_drf_labels
-            probability_ratio_labels[mask] = 1e-6 # Don't count the padding tokens for the exact reward
-            acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
+            p_tgt_labels[mask] = 0 # Don't count the padding tokens for the exact reward
+            acceptance_ratio_labels = torch.min(p_tgt_labels / q_drf_labels, torch.tensor(1))
 
             # 3. get weighted reward
-            eps = 1e-20
+            eps = 1e-10
+            
             # p_tgt_labels_history : positive & decreasing
             p_tgt_labels_history = F.pad(p_tgt_labels[..., :-1].cumprod(-1), (1, 0), value=1)
             p_tgt_labels_history[p_tgt_labels_history < eps] = 0
@@ -108,6 +108,9 @@ class Policy(object):
             assert map_reward['exact_reward_for_loss'].isnan().sum().item() == 0
         
         elif self._config['mean_logit']:
+            """
+            # <IMPORTANT> Not yet SYNCED WITH ABOVE IF BLOCK
+            """
             # use expectation, not weighted by p_tgt over full vocab: (B, S, V)
             
             # 1. acceptance_ratio_mean
@@ -124,7 +127,7 @@ class Policy(object):
             acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
 
             # 3. get mean reward
-            eps = 1e-20
+            eps = 1e-10
             
             # acceptance_Ratio_history : positive & decreasing
             acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
