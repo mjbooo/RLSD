@@ -64,6 +64,7 @@ class Policy(object):
         # 1. exact reward
         if self._config['weighted_logit']:
             # use weighted expectation over full vocab: (B, S, V)
+            B, S, _ = q_drf.size()
             
             # 1. acceptance_ratio_mean
             min_p_q = torch.min(p_tgt, q_drf)
@@ -79,20 +80,24 @@ class Policy(object):
             acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
 
             # 3. get weighted reward
-            _p_tgt_labels_history_log = F.pad(p_tgt_labels[..., :-1].log().cumsum(-1), (1, 0), value=1)
-            _p_tgt_labels_history_log[mask] = - float('inf')
-            p_tgt_labels_history = _p_tgt_labels_history_log.softmax(-1) # (B, S)
+            eps = 1e-20
+            # p_tgt_labels_history : positive & decreasing
+            p_tgt_labels_history = F.pad(p_tgt_labels[..., :-1].cumprod(-1), (1, 0), value=1)
+            p_tgt_labels_history[p_tgt_labels_history < eps] = 0
+            
+            # acceptance_Ratio_history : positive & decreasing
+            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
+            
+            is_acceptance_history_zero = acceptance_ratio_history == 0
+            mask_zero = is_acceptance_history_zero[..., None, :] + is_acceptance_history_zero[..., None]
+            mask_tril = torch.tril(torch.ones_like(mask_zero), diagonal=-1)
 
-            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].log().cumsum(-1), (1, 0), value=1) # (B, S)
-            acceptance_ratio_history[mask] = 1e-6 # epsilon for log
-            mat = acceptance_ratio_history[..., None, :] - acceptance_ratio_history[..., None]
-            mask_triu = torch.triu(torch.ones_like(mat, dtype=torch.bool))
-            mat[~mask_triu] = - float('inf')
-            mat[mask] = - float('inf')
-            mat_exp = mat.exp()
+            acceptance_ratio_history[acceptance_ratio_history == 0] = eps
+            mat = acceptance_ratio_history[..., None, :] * torch.reciprocal(acceptance_ratio_history)[..., None]
+            mat[mask_zero+mask_tril] = 0
 
             map_reward['exact_reward_for_loss'] = (
-                                mat_exp # B, S, S
+                                mat # B, S, S
                                 * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
                                 * p_tgt_labels_history[..., None].clone() # B, S, 1 
                             ).sum(dim=(1, 2))
@@ -115,9 +120,14 @@ class Policy(object):
             probability_ratio_labels[mask] = 1e-6 # Don't count the padding tokens for the exact reward
             acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
 
-            acceptance_ratio_history_log = F.pad(acceptance_ratio_labels[..., :-1].log().cumsum(-1), (1, 0), value=0) # (B, S)
-            acceptance_ratio_history_log[mask] = - float('inf') # 0 for exp
-            acceptance_ratio_history = acceptance_ratio_history_log.exp()
+            # 3. get mean reward
+            eps = 1e-20
+            
+            # acceptance_Ratio_history : positive & decreasing
+            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
+            
+            acceptance_ratio_history[acceptance_ratio_history < eps] = 0
+            acceptance_ratio_mean[acceptance_ratio_mean < eps] = 0
    
             map_reward['exact_reward_for_loss'] = (
                                         acceptance_ratio_history.clone() # B, S

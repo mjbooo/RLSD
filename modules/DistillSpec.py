@@ -64,7 +64,7 @@ class DistillSpec(Policy):
         p_tgt: (B, S+1, V) - S+1: real draft + bonus token
         mask: (B, S+1) - S+1: start token + real draft
         """
-        q_drf, p_tgt, mask = self.get_probability_and_mask(
+        q_drf, p_tgt, mask, log_q_drf = self.get_probability_and_mask(
             outputs_drf = outputs_drf, # from drf_model
             outputs_tgt = outputs_tgt, # from tgt_model
             labels_drf = batch['labels']
@@ -75,6 +75,7 @@ class DistillSpec(Policy):
                             q_drf, 
                             p_tgt[:, :-1, :], # no bonus token for calculating the loss
                             mask[:, :-1], # no bonus token for calculating the loss
+                            log_q_drf,
                         )
 
         # 4. log custom metrics (sd) when evaluate
@@ -111,26 +112,37 @@ class DistillSpec(Policy):
         q_drf = torch.softmax(logits_drf, dim=-1)
         p_tgt = torch.softmax(logits_tgt, dim=-1)
 
-        return  q_drf, p_tgt, mask
+        
+        # Numerical stability for KL
+        if self._config['divergence'] == 'kl':
+            return q_drf, p_tgt, mask, torch.log_softmax(logits_drf, dim=-1)
+
+        return q_drf, p_tgt, mask, None
     
     def get_loss(
         self,
         q_drf: torch.FloatTensor,
         p_tgt: torch.FloatTensor,
         mask: torch.BoolTensor,
+        log_q_drf: Optional[torch.FloatTensor] = None,
     ) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """
         Compute the loss for the given batch of inputs.
         # Input: two logit tensors from two models
         """
         # masking out the padding part
-        q_drf_masked = q_drf[~mask]
+        if log_q_drf is not None:
+            q_drf_masked = log_q_drf[~mask]
+        else:
+            q_drf_masked = q_drf[~mask]
+
         p_tgt_masked = p_tgt[~mask]
 
         if self._config['divergence'] == 'kl':
             # KL divergence loss
             criterion = torch.nn.KLDivLoss(reduction='batchmean')
-            loss = criterion(q_drf_masked.log(), p_tgt_masked)
+            # q_drf_masked from torch.logsoftmax
+            loss = criterion(q_drf_masked, p_tgt_masked)
 
         elif self._config['divergence'] == 'tvd':
             # Total Variation Distance loss
