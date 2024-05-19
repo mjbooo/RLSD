@@ -86,8 +86,11 @@ class Trainer(object):
         # get train dataloader with new response
         train_dataloader = self.datamodule.get_dataloader("train")
 
+        # Sanity check: validation at the starting point
         if self._config['initial_valid']:
-            self.validate() # Sanity check: validation at the starting point
+            self.validate() 
+        if self._config['initial_valid_tiny']:
+            self.validate_tiny()
 
         for epoch in range(self.counter.get_cum_epoch(), self.datamodule.n_epochs):
             for batch in tqdm(iterable=train_dataloader, desc=f"train: Epoch {epoch}, Steps {self.counter.cum_train_step}"):

@@ -62,11 +62,14 @@ def config():
     # Logging config
     gammas = [3, 5, 7] # "gamma for first block efficiency"
     custom_metrics = ['exact_reward', 'acceptance_ratio_alpha', 'first_block_efficiency']
-    logging_steps = 0.01 # if the value <1, then it works as a ratio for a single epoch
+    logging_steps = 0.005 # if the value <1, then it works as a ratio for a single epoch
     valid_steps = 0.5 # if the value <1, then it works as a ratio for a single epoch
-    valid_tiny_steps = 0.1 # if the value <1, then it works as a ratio for a single epoch
-    num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
     wandb_project_name = "RLSD" # wandb project name
+    
+    # valid_tiny
+    initial_valid_tiny = True # disable validation on valid_tiny set for step=0
+    num_valid_tiny = 500 # " len(valid_tiny) for measuring block efficiency"
+    valid_tiny_steps = 0.05 # if the value <1, then it works as a ratio for a single epoch
 
     # Path config
     root = "/pvc/home-mjlee" # root path 
