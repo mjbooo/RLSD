@@ -88,12 +88,13 @@ class Policy(object):
             # acceptance_Ratio_history : positive & decreasing
             acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
             
-            is_acceptance_history_zero = acceptance_ratio_history == 0
+            is_acceptance_history_zero = acceptance_ratio_history < eps
+            acceptance_ratio_history[is_acceptance_history_zero] = eps # clipping for reciprocal
+
             mask_zero = is_acceptance_history_zero[..., None, :] + is_acceptance_history_zero[..., None]
             mask_tril = torch.tril(torch.ones_like(mask_zero), diagonal=-1)
             mask_diag = torch.eye(S, dtype=torch.bool)[None, ...].expand(B, -1, -1)
 
-            acceptance_ratio_history[acceptance_ratio_history == 0] = eps
             mat = acceptance_ratio_history[..., None, :] * torch.reciprocal(acceptance_ratio_history)[..., None]
             mat[mask_zero+mask_tril] = 0
             mat[mask_diag] = 1
