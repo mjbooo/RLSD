@@ -83,9 +83,22 @@ def main(argv):
         tgt_tokenizer = AutoTokenizer.from_pretrained(FLAGS.tgt)
         task_prompt = get_task_prompt(dataset_name)
         
+        def preprocess_function(examples):
+            model_inputs = tgt_tokenizer(
+                        [task_prompt + doc for doc in examples["prompt"]],
+                        max_length=FLAGS.max_prompt_length, 
+                        return_tensors="pt",
+                        padding=True, 
+                        truncation=True, 
+                        add_special_tokens=True,
+                    )
+            return model_inputs        
+        
+
         for split in ['train', 'valid', 'test']:
+            tokenized_datasets = datasets[split].map(preprocess_function, batched=True)
             data_loader = PromptIterator(
-                datasets[split],
+                tokenized_datasets,
                 batch_size=FLAGS.batch_size,
                 shuffle=False
                 )
@@ -126,4 +139,5 @@ python3 datamodules/preprocess.py --dataset=wmt/wmt14 --option='de-en'
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024 ;\
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2023 ;\
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2022
+CUDA_VISIBLE_DEVICES=1 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024 --batch_size=96
 """
