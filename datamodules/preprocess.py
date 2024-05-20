@@ -92,30 +92,25 @@ def main(argv):
                         truncation=True, 
                         add_special_tokens=True,
                     )
-            return model_inputs        
+            return model_inputs
         
+        def collate_fn(batch):
+            return {k: torch.stack([torch.LongTensor(example[k]) for example in batch]).to(tgt_model.device) for k in ['input_ids', 'attention_mask']}
 
         for split in ['train', 'valid', 'test']:
             tokenized_datasets = datasets[split].map(preprocess_function, batched=True)
             data_loader = PromptIterator(
                 tokenized_datasets,
                 batch_size=FLAGS.batch_size,
-                shuffle=False
+                shuffle=False,
+                collate_fn=collate_fn,
                 )
 
             decoded_samples = []
             for batch in tqdm(iterable=data_loader, desc=f"Generating {split} samples"):
-                inputs_prompts = tgt_tokenizer(
-                    [task_prompt + p for p in batch['prompt']],
-                    max_length=FLAGS.max_prompt_length, 
-                    return_tensors="pt",
-                    padding=True, 
-                    truncation=True, 
-                    add_special_tokens=True,
-                    ).to(tgt_model.device)
 
                 decoded_outputs = tgt_model.generate(
-                                        **inputs_prompts,
+                                        **batch,
                                         max_new_tokens=FLAGS.max_target_length,
                                         do_sample=True,
                                         temperature=1,
@@ -140,4 +135,7 @@ CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_re
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2023 ;\
 CUDA_VISIBLE_DEVICES=2 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2022
 CUDA_VISIBLE_DEVICES=1 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024 --batch_size=96
+
+# debug
+CUDA_VISIBLE_DEVICES=1 python3 datamodules/preprocess.py --dataset=xsum --tgt_response=True --seed=2024 --batch_size=96 --tiny_data=True
 """
