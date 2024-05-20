@@ -93,7 +93,8 @@ class Policy(object):
             acceptance_ratio_mean[acceptance_ratio_mean < eps] = eps
 
             mask_zero = is_acceptance_history_zero[..., None, :] + is_acceptance_history_zero[..., None]
-            mask_tril = torch.tril(torch.ones_like(mask_zero), diagonal=-1)
+            ones_mat = torch.ones_like(mask_zero)
+            mask_tril = torch.tril(ones_mat, diagonal=-1)
             mask_diag = torch.eye(S, dtype=torch.bool)[None, ...].expand(B, -1, -1)
 
             mat = acceptance_ratio_history[..., None, :] * torch.reciprocal(acceptance_ratio_history)[..., None]
@@ -101,25 +102,33 @@ class Policy(object):
             mat[mask_diag] = 1
 
             if self._config['p_all_traj']:
-                map_reward['exact_reward_for_loss'] = (
-                                        mat # B, S, S
-                                        * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
-                                        * p_tgt_labels_history[..., None].clone() # B, S, 1 
-                                    ).sum(dim=(1, 2))
+                mat_reward = (
+                                mat # B, S, S
+                                * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
+                                * p_tgt_labels_history[..., None].clone() # B, S, 1 
+                            )
                 
             elif self._config['non_p_all_traj']:
-                map_reward['exact_reward_for_loss'] = (
-                                        mat # B, S, S
-                                        * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
-                                    ).sum(dim=(1, 2))
+                mat_reward = (
+                                mat # B, S, S
+                                * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
+                            )
             
             elif self._config['non_p_top_traj']:
-                map_reward['exact_reward_for_loss'] = (
-                                        acceptance_ratio_history.clone() # B, S
-                                        * acceptance_ratio_mean.clone() # B, S
-                                    ).sum(dim=-1)
+                mat_reward = (
+                                acceptance_ratio_history.clone() # B, S
+                                * acceptance_ratio_mean.clone() # B, S
+                            ).sum(dim=-1)
 
-            assert map_reward['exact_reward_for_loss'].isnan().sum().item() == 0
+            if self._config['traj_limit']:
+                # only for (B, S, S) matrix
+                assert mat_reward.dim() == 3
+                mask_traj_limit = torch.triu(ones_mat.long(), 0) - torch.triu(ones_mat.long(), self._config['traj_limit'])
+                mat_reward = (mat_reward * mask_traj_limit).sum(dim=(1, 2))
+
+            assert mat_reward.isnan().sum().item() == 0
+
+            map_reward['exact_reward_for_loss'] = mat_reward
         
         elif self._config['full_logit']:
             # use expectation over full vocab: (B, S, V)

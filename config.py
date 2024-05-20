@@ -25,6 +25,7 @@ def config():
     p_all_traj = False
     non_p_all_traj = False
     non_p_top_traj = False
+    traj_limit = None # maximum length of trajectories
     
     # DistillSpec
     divergence = "kl" # "divergence for distillation" Literal["kl", "tvd"]
@@ -89,6 +90,8 @@ def config():
             prefix += "non_p_top_traj-"
         if non_p_all_traj:
             prefix += "non_p_all_traj-"
+        if traj_limit:
+            prefix += f"len-{traj_limit}-"
         model_ckpt = prefix + policy
     elif 'DistillSpec' in policy:
         model_ckpt = f"{policy}-{divergence}"
