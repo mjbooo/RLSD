@@ -177,12 +177,7 @@ class Policy(object):
                 map_reward[f'first_block_efficiency_{g}_random_{_expectation}'] = random_reward_first_chunk[..., g-1].float().mean() + 1
 
             # 4. exact_reward
-            if _expectation == 'mean':
-                if self._config['p_all_traj'] or self._config['non_p_top_traj']:
-                    map_reward[f'exact_reward_{_expectation}'] = map_reward['exact_reward_for_loss'].cpu().detach()
-            else: # labels
-                exact_reward = _cumprod.sum(dim=-1)
-                map_reward[f'exact_reward_{_expectation}'] = exact_reward
+            map_reward[f'exact_reward_{_expectation}'] = _cumprod.sum(-1)
 
         return map_reward
 
@@ -227,8 +222,6 @@ class Policy(object):
                 metrics['acceptance_ratio_alpha_labels'] = metric_tensor['acceptance_ratio_alpha_labels'].item()
             else:
                 _keys_exact_reward = ['exact_reward_labels']
-                if self._config['p_all_traj']:
-                    _keys_exact_reward += ['exact_reward_mean']
                 for _key in _keys_exact_reward:
                     metrics[_key] = metric_tensor[_key].mean().item()
                     if not 'ratio' in _m:
