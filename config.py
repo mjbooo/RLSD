@@ -22,8 +22,9 @@ def config():
     
     # RL
     full_logit = False
-    weighted_logit = False
-    mean_logit = False
+    p_all_traj = False
+    non_p_all_traj = False
+    non_p_top_traj = False
     
     # DistillSpec
     divergence = "kl" # "divergence for distillation" Literal["kl", "tvd"]
@@ -82,10 +83,12 @@ def config():
             prefix += f"Trun-{truncation_deg}-"
         if full_logit:
             prefix += "full-"
-        if weighted_logit:
-            prefix += "weighted-"
-        if mean_logit:
-            prefix += "mean-"
+        if p_all_traj:
+            prefix += "p_all_traj-"
+        if non_p_top_traj:
+            prefix += "non_p_top_traj-"
+        if non_p_all_traj:
+            prefix += "non_p_all_traj-"
         model_ckpt = prefix + policy
     elif 'DistillSpec' in policy:
         model_ckpt = f"{policy}-{divergence}"
@@ -177,9 +180,9 @@ def full_RL():
     lr_scheduler = "linear_warmup_cosine_decay"
 
 @ex.named_config
-def Weighted_RL():
+def PAllTraj():
     policy = "RL"
-    weighted_logit = True
+    p_all_traj = True
     
     wandb_project_name = "240513DistillSpec"
 
@@ -190,9 +193,22 @@ def Weighted_RL():
     lr_scheduler = "linear_warmup_cosine_decay"
 
 @ex.named_config
-def Mean_RL():
+def NonPAllTraj():
     policy = "RL"
-    mean_logit = True
+    non_p_all_traj = True
+    
+    wandb_project_name = "240513DistillSpec"
+
+    max_training_steps = 300000 # "The number of total training steps". This will over ride the n_epochs
+    batch_train=32
+    optimizer = "adafactor"
+    lr = 3e-4
+    lr_scheduler = "linear_warmup_cosine_decay"
+
+@ex.named_config
+def NonPTopTraj():
+    policy = "RL"
+    non_p_top_traj = True
     
     wandb_project_name = "240513DistillSpec"
 

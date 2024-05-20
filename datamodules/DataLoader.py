@@ -7,11 +7,12 @@ from datasets import Dataset
 from accelerate.utils import tqdm
 
 class PromptIterator(DataLoader):
-    def __init__(self, dataset, batch_size, shuffle=True):
+    def __init__(self, dataset, batch_size, collate_fn=None, shuffle=True):
         super().__init__(
             dataset,
             batch_size=batch_size, 
             shuffle=shuffle,
+            collate_fn=collate_fn,
         )
 
 class BatchWiseDataLoader(DataLoader):

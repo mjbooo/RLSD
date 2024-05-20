@@ -57,12 +57,13 @@ class Policy(object):
         No start token in input
         """
         map_reward = dict()
+        eps = 1e-15
 
         # 0. num_token_drf
         map_reward['num_token_drf'] = (~mask).sum(dim=1).cpu() # max 128
 
         # 1. exact reward
-        if self._config['weighted_logit']:
+        if self._config['p_all_traj'] or self._config['non_p_all_traj']:
             # use weighted expectation over full vocab: (B, S, V)
             B, S, _ = q_drf.size()
             
@@ -78,18 +79,18 @@ class Policy(object):
             p_tgt_labels[mask] = 0 # Don't count the padding tokens for the exact reward
             acceptance_ratio_labels = torch.min(p_tgt_labels / q_drf_labels, torch.tensor(1))
 
-            # 3. get weighted reward
-            eps = 1e-10
+            # 3. get weighted reward\
             
+            # acceptance_Ratio_history : positive & decreasing
+            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
+
             # p_tgt_labels_history : positive & decreasing
             p_tgt_labels_history = F.pad(p_tgt_labels[..., :-1].cumprod(-1), (1, 0), value=1)
             p_tgt_labels_history[p_tgt_labels_history < eps] = 0
             
-            # acceptance_Ratio_history : positive & decreasing
-            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
-            
             is_acceptance_history_zero = acceptance_ratio_history < eps
             acceptance_ratio_history[is_acceptance_history_zero] = eps # clipping for reciprocal
+            acceptance_ratio_mean[acceptance_ratio_mean < eps] = eps
 
             mask_zero = is_acceptance_history_zero[..., None, :] + is_acceptance_history_zero[..., None]
             mask_tril = torch.tril(torch.ones_like(mask_zero), diagonal=-1)
@@ -99,47 +100,26 @@ class Policy(object):
             mat[mask_zero+mask_tril] = 0
             mat[mask_diag] = 1
 
-            map_reward['exact_reward_for_loss'] = (
-                                mat # B, S, S
-                                * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
-                                * p_tgt_labels_history[..., None].clone() # B, S, 1 
-                            ).sum(dim=(1, 2))
-
-            assert map_reward['exact_reward_for_loss'].isnan().sum().item() == 0
-        
-        elif self._config['mean_logit']:
-            """
-            # <IMPORTANT> Not yet SYNCED WITH ABOVE IF BLOCK
-            """
-            # use expectation, not weighted by p_tgt over full vocab: (B, S, V)
+            if self._config['p_all_traj']:
+                map_reward['exact_reward_for_loss'] = (
+                                        mat # B, S, S
+                                        * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
+                                        * p_tgt_labels_history[..., None].clone() # B, S, 1 
+                                    ).sum(dim=(1, 2))
+                
+            elif self._config['non_p_all_traj']:
+                map_reward['exact_reward_for_loss'] = (
+                                        mat # B, S, S
+                                        * acceptance_ratio_mean[..., None, :].clone() # B, 1, S
+                                    ).sum(dim=(1, 2))
             
-            # 1. acceptance_ratio_mean
-            min_p_q = torch.min(p_tgt, q_drf)
-            min_p_q[mask] = 0 # Don't count the padding tokens for the exact reward
-            acceptance_ratio_mean = min_p_q.sum(-1)
-
-            # 2. acceptance_ratio_labels
-            q_drf_labels = torch.gather(q_drf, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
-            p_tgt_labels = torch.gather(p_tgt, -1, labels_drf.unsqueeze(-1)).squeeze(-1)
-
-            probability_ratio_labels = p_tgt_labels / q_drf_labels
-            probability_ratio_labels[mask] = 1e-6 # Don't count the padding tokens for the exact reward
-            acceptance_ratio_labels = torch.min(probability_ratio_labels, torch.tensor(1))
-
-            # 3. get mean reward
-            eps = 1e-10
-            
-            # acceptance_Ratio_history : positive & decreasing
-            acceptance_ratio_history = F.pad(acceptance_ratio_labels[..., :-1].cumprod(-1), (1, 0), value=1) # (B, S)
-            
-            acceptance_ratio_history[acceptance_ratio_history < eps] = 0
-            acceptance_ratio_mean[acceptance_ratio_mean < eps] = 0
-   
-            map_reward['exact_reward_for_loss'] = (
+            elif self._config['non_p_top_traj']:
+                map_reward['exact_reward_for_loss'] = (
                                         acceptance_ratio_history.clone() # B, S
                                         * acceptance_ratio_mean.clone() # B, S
-                                        ).sum(dim=-1)
+                                    ).sum(dim=-1)
 
+            assert map_reward['exact_reward_for_loss'].isnan().sum().item() == 0
         
         elif self._config['full_logit']:
             # use expectation over full vocab: (B, S, V)
@@ -198,7 +178,7 @@ class Policy(object):
 
             # 4. exact_reward
             if _expectation == 'mean':
-                if self._config['weighted_logit'] or self._config['mean_logit']:
+                if self._config['p_all_traj'] or self._config['non_p_top_traj']:
                     map_reward[f'exact_reward_{_expectation}'] = map_reward['exact_reward_for_loss'].cpu().detach()
             else: # labels
                 exact_reward = _cumprod.sum(dim=-1)
@@ -247,7 +227,7 @@ class Policy(object):
                 metrics['acceptance_ratio_alpha_labels'] = metric_tensor['acceptance_ratio_alpha_labels'].item()
             else:
                 _keys_exact_reward = ['exact_reward_labels']
-                if self._config['weighted_logit']:
+                if self._config['p_all_traj']:
                     _keys_exact_reward += ['exact_reward_mean']
                 for _key in _keys_exact_reward:
                     metrics[_key] = metric_tensor[_key].mean().item()
