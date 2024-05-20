@@ -54,6 +54,7 @@ def config():
     tiny_data = False # use small data for debugging
     initial_valid = True # disable validation for step=0
     no_valid_until = -1 # disable validation until the epoch "no_valid_until"
+    whole_valid = True # enable validation on the whole valid set
 
     # load
     ckpt_dir = None # load checkpoint model

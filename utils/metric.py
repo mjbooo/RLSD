@@ -43,10 +43,11 @@ class Metric:
         return self.cum_train_step == self.total_train_step
     
     def is_valid(self) -> bool:
+        is_whole_valid = self._config['whole_valid']
         is_predefined_no_valid = self.get_cum_epoch() >= self.no_valid_until
         is_count = self.cum_train_step % self.valid_interval == 0
         
-        return is_count and is_predefined_no_valid
+        return is_count and is_predefined_no_valid and is_whole_valid
     
     def is_valid_tiny(self) -> bool:
         is_predefined_no_valid = self.get_cum_epoch() >= self.no_valid_until
